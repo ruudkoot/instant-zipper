@@ -1,0 +1,14 @@
+Name:                Instant Zipper
+Version:             0.0
+Synopsis:            Super cool mega lambdas
+Description:         My super cool, indeed, even mega lambdas 
+                     will demonstrate a basic project. You will marvel.
+License:             GPL
+License-file:        LICENSE
+Author:              Bram Schuur, Ruud Koot
+Maintainer:          Yow
+Build-Depends:       base, instant-generics
+
+module Generics.Instant.Zipper
+    hs-source-dirs : src
+
