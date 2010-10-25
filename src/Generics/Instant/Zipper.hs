@@ -60,7 +60,7 @@ up (Loc _ [])       = Nothing
 up (Loc f (c:cs))   = (\x -> Loc (to x) cs) <$> fill' c f
 
 down :: (Zipper f) => Loc f -> Maybe (Loc f)
-down (Loc f cs) = (\(f',c) -> Loc (to f') (c : cs)) <$> first' (from f)
+down (Loc f cs) = (\(f',c) -> Loc f' (c : cs)) <$> first' (from f)
 
 -- | ZipperA
 
@@ -119,10 +119,10 @@ instance (Fillable f, Fillable g) => Fillable (f :*: g) where
     fill' (C2 l c) v = (l :*:) <$> fill' c v
 
 instance (Typeable a) => Fillable (Rec a) where
-    fill' Recursive = cast
+    fill' Recursive v = Rec <$> cast v
     
 instance (Typeable a) => Fillable (Var a) where
-    fill' Variable = cast
+    fill' Variable v = Var <$> cast v
 
 instance (Fillable f) => Fillable (C c f) where
     fill' (CC c) v = C <$> fill' c v

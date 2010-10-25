@@ -16,8 +16,9 @@ import Generics.Instant.TH
 import Generics.Instant.Zipper
 import Generics.Instant.Rewriting
 
-import Data.Typeable
 import Data.Maybe
+import Data.Typeable
+import Debug.Trace
 
 data Exp = Const Int | Plus Exp Exp deriving (Typeable,Show)
 
@@ -50,3 +51,18 @@ firstHole = fst . fromJust . first' . from
 test :: Exp
 test = firstHole testExp1
 
+downExp :: Loc Exp -> Maybe (Loc Exp)
+downExp = down
+
+fContext :: Loc Exp
+fContext = fromJust . down . enter $ testExp1
+
+test2 :: Exp
+test2 = (\(Loc f _) -> f) $ fContext
+
+
+test4 :: Exp
+test4 = to . fromJust . (\(Loc f (c : cs)) -> fill' c f) $ fContext
+
+test3 :: Exp
+test3 = leave . fromJust . down . enter $ testExp1
