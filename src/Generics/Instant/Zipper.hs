@@ -6,11 +6,19 @@
 {-# LANGUAGE StandaloneDeriving  #-}
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+
+{-# OPTIONS_GHC -Wall             #-}
 
 module Generics.Instant.Zipper where
 
 import Data.Maybe
 import Data.Typeable
+import Debug.Trace
+
+import Control.Applicative
+import Control.Monad
+
 import Generics.Instant
 
 deriving instance (Typeable U)
@@ -31,60 +39,93 @@ class Zipper f where
     next, prev  :: (r -> Ctx f r -> a) -> Ctx f r -> r -> Maybe a
 -}
 
-class (Representable f, Typeable f, Fillable f, Firstable f) => Zipper f where
-    data Ctx f :: *
-    --cmapA       :: (r -> Maybe r') -> Ctx f r -> Maybe (Ctx f r')
+-- | Initialization
 
-    first, last :: (f -> Ctx f -> a) -> f -> Maybe a
-    next, prev  :: (f -> Ctx f -> a) -> Ctx f -> f -> Maybe a
+createZipper :: (Zipper f) => f -> Loc f
+createZipper f = enter f
 
+-- | Basic constructs
 
-instance Zipper U where
+data Loc f = Loc f [Ctx (Rep f)]
+
+enter :: Zipper f => f -> Loc f
+enter f = Loc f []
+
+leave :: Zipper f => Loc f -> f
+leave (Loc f []) = f
+leave loc = leave (fromMaybe (error "Error leaving") (up loc))
+
+up :: Zipper f => Loc f -> Maybe (Loc f)
+up (Loc _ [])       = Nothing
+up (Loc f (c:cs))   = (\x -> Loc (to x) cs) <$> fill' c f
+
+down :: (Zipper f) => Loc f -> Maybe (Loc f)
+down (Loc f cs) = (\(f',c) -> Loc (to f') (c : cs)) <$> first' (from f)
+
+-- | ZipperA
+
+class (Representable f, Typeable f, Typeable (Rep f), Fillable (Rep f), Firstable (Rep f)) => Zipper f
+
+-- | Zipper
+
+class Zippable f where
+    data Ctx f :: * 
+    
+instance Zippable Int where
+    data Ctx Int
+    
+instance Zippable U where
     data Ctx U
     --fill ctx f = impossible
-    first _ U  = Nothing
-    last  _ U  = Nothing
-    next  _ _ _ = impossible
-    prev  _ _ _ = impossible
+    --first _ U  = Nothing
+    --last  _ U  = Nothing
+    --next  _ _ _ = impossible
+    --prev  _ _ _ = impossible
     
-instance (Zipper f, Zipper g) => Zipper (f :+: g) where
+instance (Zippable f, Zippable g) => Zippable (f :+: g) where
     data Ctx (f :+: g) = CL (Ctx f) | CR (Ctx g)
-
-    --fill (CL c) x = L (fill c x)
-    --fill (CR c) y = R (fill c y)
     
-    --first f (L x) = first (\z -> f z . CL) x
-    
-    
-instance (Zipper f, Zipper g) => Zipper (f :*: g) where
+instance (Zippable f, Zippable g) => Zippable (f :*: g) where
     data Ctx (f :*: g) = C1 (Ctx f) g | C2 f (Ctx g)
     
-instance (Zipper a) => Zipper (Rec a) where
+instance (Zippable a) => Zippable (Rec a) where
     data Ctx (Rec a) = Recursive
     
-instance (Zipper a) => Zipper (Var a) where
+instance (Zippable a) => Zippable (Var a) where
     data Ctx (Var a) = Variable
     
-instance (Zipper f, Typeable c) => Zipper (C c f) where
+instance (Zippable f) => Zippable (C c f) where
     data Ctx (C c f) = CC (Ctx f)
 
 -- | Fill
 
 class Fillable f where
-    fill' :: (Typeable a) => Ctx f -> a -> f
-    
+    fill' :: (Typeable a) => Ctx f -> a -> Maybe f
+
+instance Fillable U where
+    fill' = impossible
+
+instance Fillable Int where
+    fill' = impossible
+            
 instance (Fillable f, Fillable g) => Fillable (f :+: g) where
 --    fill :: Ctx (f :+: g) -> a -> (f :+: g)
-    fill' (CL l) v = L (fill' l v) 
-    fill' (CR r) v = R (fill' r v) 
+    fill' (CL l) v = L <$> fill' l v
+    fill' (CR r) v = R <$> fill' r v
 
 instance (Fillable f, Fillable g) => Fillable (f :*: g) where
 --    fill :: Ctx (f :+: g) -> a -> (f :+: g)
-    fill' (C1 c r) v = (fill' c v) :*: r 
-    fill' (C2 l c) v = l :*: (fill' c v) 
+    fill' (C1 c r) v = flip (:*:) r <$> fill' c v
+    fill' (C2 l c) v = (l :*:) <$> fill' c v
 
-instance (Zipper a) => Fillable (Rec a) where
-    fill' (Recursive) v = fromJust $ cast v
+instance (Typeable a) => Fillable (Rec a) where
+    fill' Recursive = cast
+    
+instance (Typeable a) => Fillable (Var a) where
+    fill' Variable = cast
+
+instance (Fillable f) => Fillable (C c f) where
+    fill' (CC c) v = C <$> fill' c v
 {-    
 fill :: (Rewritable f, Rewritable f') => Ctx f -> f -> f'
 fill = 
@@ -98,13 +139,63 @@ class Fillable f where
 
 --first = undefined
 
+mapFst :: (a -> c) -> (a,b) -> (c,b)
+mapFst f (a,b) = (f a, b)
+
+mapSnd :: (b -> d) -> (a,b) -> (a,d)
+mapSnd f (a,b) = (a, f b)
+
+
 class Firstable f where
-    first' :: (Zipper f') => (f' -> Ctx f' -> a) -> f -> Maybe a
-    
+    first' :: (Typeable a) => f -> Maybe (a, Ctx f)
+
+instance Firstable U where
+    first' _ = Nothing
+
+instance Firstable Int where
+    first' _ = Nothing
+            
 instance (Firstable f, Firstable g) => Firstable (f :+: g) where
-    --first' :: 
-    first' f (L x) = let cont z = f z . CL
-                     in first' cont x
-    --first' f (R y) = first' (\z -> f z . CR) y
+    first' (L x) = mapSnd CL <$> first' x
+    first' (R y) = mapSnd CR <$> first' y
 
+instance (Firstable f, Firstable g) => Firstable (f :*: g) where
+    first' (l :*: r) = mapSnd (flip C1 r) <$> first' l
+                   <|> mapSnd (C2 l) <$> first' r
 
+instance (Typeable f) => Firstable (Rec f) where
+    first' (Rec v) = (\x -> (x, Recursive)) <$> cast v
+
+instance (Typeable f) => Firstable (Var f) where
+    first' (Var v) = (\x -> (x, Variable)) <$> cast v
+
+instance (Firstable f) => Firstable (C c f) where
+    first' (C v) = mapSnd CC <$> first' v
+    
+-- | Next
+
+{-
+class Nextable f where
+    next' :: Ctx f -> f -> Maybe (a, Ctx f)
+    
+instance Nextable U where
+    next' _ _ = impossible
+
+instance (Nextable f, Nextable g) => Nextable (f :+: g) where
+    first' (L x) = mapSnd CL <$> first' x
+    first' (R y) = mapSnd CR <$> first' y
+
+instance (Nextable f, Nextable g) => Nextable (f :*: g) where
+    first' (l :*: r) = mapSnd (flip C1 r) <$> first' l
+                   <|> mapSnd (C2 l) <$> first' r
+
+instance (Nextable f) => Nextable (Rec f) where
+    first' (Rec v) = (\x -> (x, Recursive)) <$> cast v
+
+instance (Nextable f) => Nextable (Var f) where
+    first' (Var v) = (\x -> (x, Variable)) <$> cast v
+
+instance (Nextable f) => Nextable (C c f) where
+    first' (C v) = mapSnd CC <$> first' v    
+-}
+    
