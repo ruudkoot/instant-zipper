@@ -7,7 +7,6 @@
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
 
 {-# OPTIONS_GHC -Wall             #-}
 
@@ -47,25 +46,21 @@ createZipper f = enter f
 
 -- | Basic constructs
 
-data Ctxs where
-    Empty ::                                      Ctxs
-    Push  :: (Zipper f) => Ctx (Rep f) -> Ctxs -> Ctxs
-
-data Loc f = Loc f Ctxs
+data Loc f = Loc f [Ctx (Rep f)]
 
 enter :: Zipper f => f -> Loc f
-enter f = Loc f Empty
+enter f = Loc f []
 
 leave :: Zipper f => Loc f -> f
-leave (Loc f Empty) = f
+leave (Loc f []) = f
 leave loc = leave (fromMaybe (error "Error leaving") (up loc))
 
 up :: Zipper f => Loc f -> Maybe (Loc f)
-up (Loc _ Empty)       = Nothing
-up (Loc f (Push c cs))   = (\x -> Loc (to x) cs) <$> fill' (fromJust . gcast $ c) f
+up (Loc _ [])       = Nothing
+up (Loc f (c:cs))   = (\x -> Loc (to x) cs) <$> fill' c f
 
 down :: (Zipper f) => Loc f -> Maybe (Loc f)
-down (Loc f cs) = (\(f',c) -> Loc f' (Push c cs)) <$> first' (from f)
+down (Loc f cs) = (\(f',c) -> Loc f' (c : cs)) <$> first' (from f)
 
 -- | ZipperA
 
@@ -105,7 +100,7 @@ instance (Zippable f) => Zippable (C c f) where
 -- | Fill
 
 class Fillable f where
-    fill' :: (Zipper a) => Ctx f -> a -> Maybe f
+    fill' :: (Typeable a) => Ctx f -> a -> Maybe f
 
 instance Fillable U where
     fill' = impossible
@@ -123,10 +118,10 @@ instance (Fillable f, Fillable g) => Fillable (f :*: g) where
     fill' (C1 c r) v = flip (:*:) r <$> fill' c v
     fill' (C2 l c) v = (l :*:) <$> fill' c v
 
-instance (Zipper a) => Fillable (Rec a) where
+instance (Typeable a) => Fillable (Rec a) where
     fill' Recursive v = Rec <$> cast v
     
-instance (Zipper a) => Fillable (Var a) where
+instance (Typeable a) => Fillable (Var a) where
     fill' Variable v = Var <$> cast v
 
 instance (Fillable f) => Fillable (C c f) where
