@@ -76,7 +76,11 @@ down (Loc f cs) = (\(f', c) -> Loc f' (HCons c cs)) <$> first' (from f)
 
 -- | ZipperA
 
-class (Representable f, Typeable f, Typeable (Rep f), Fillable (Rep f), Firstable (Rep f)) => Zipper f
+class (Representable f, Typeable f, Typeable (Rep f), Fillable (Rep f), Firstable (Rep f), Nextable (Rep f)) => Zipper f
+
+instance Zipper Int
+
+
 
 -- | Zipper
 
@@ -138,6 +142,8 @@ instance (Typeable a) => Fillable (Var a) where
 
 instance (Fillable f) => Fillable (C c f) where
     fill' (CC c) v = C <$> fill' c v
+    
+   
 {-    
 fill :: (Rewritable f, Rewritable f') => Ctx f -> f -> f'
 fill = 
@@ -165,7 +171,7 @@ instance Firstable U where
     first' _ = Nothing
 
 instance Firstable Int where
-    first' _ = Nothing
+    first' _ = Nothing -- impossible?
             
 instance (Firstable f, Firstable g) => Firstable (f :+: g) where
     first' (L x) = mapSnd CL <$> first' x
@@ -186,28 +192,29 @@ instance (Firstable f) => Firstable (C c f) where
     
 -- | Next
 
-{-
 class Nextable f where
-    next' :: Ctx f -> f -> Maybe (a, Ctx f)
+    next' :: (Zipper a, Zipper b) => Ctx f -> a -> Maybe (b, Ctx f)
     
 instance Nextable U where
-    next' _ _ = impossible
+    next' _ _ = Nothing
 
 instance (Nextable f, Nextable g) => Nextable (f :+: g) where
-    first' (L x) = mapSnd CL <$> first' x
-    first' (R y) = mapSnd CR <$> first' y
+    next' (CL c) x = mapSnd CL <$> next' c x
+    next' (CR c) y = mapSnd CR <$> next' c y
 
-instance (Nextable f, Nextable g) => Nextable (f :*: g) where
-    first' (l :*: r) = mapSnd (flip C1 r) <$> first' l
-                   <|> mapSnd (C2 l) <$> first' r
+instance (Nextable f, Nextable g, Fillable f, Firstable g) => Nextable (f :*: g) where
+    next' (C1 c y) x = mapSnd (flip C1 y) <$> next' c x
+                   <|> (\x' (y',c') -> (y', C2 x' c')) <$> fill' c x <*> first' y
+    next' (C2 x c) y = mapSnd (C2 x) <$> next' c y 
 
-instance (Nextable f) => Nextable (Rec f) where
-    first' (Rec v) = (\x -> (x, Recursive)) <$> cast v
+instance Nextable (Rec f) where
+    next' (Recursive) _ = Nothing
 
-instance (Nextable f) => Nextable (Var f) where
-    first' (Var v) = (\x -> (x, Variable)) <$> cast v
+instance Nextable (Var f) where
+    next' (Variable) _ = Nothing
 
 instance (Nextable f) => Nextable (C c f) where
-    first' (C v) = mapSnd CC <$> first' v    
--}
+    next' (CC v) x = mapSnd CC <$> next' v x
     
+instance Nextable Int where
+    next' _ _ = impossible

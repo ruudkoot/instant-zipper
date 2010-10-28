@@ -13,7 +13,7 @@ module Generics.Instant.TestsSSHetero where
 
 import Generics.Instant
 import Generics.Instant.TH
-import Generics.Instant.Zipper
+import Generics.Instant.ZipperSSHetero
 import Generics.Instant.Rewriting
 
 import Data.Maybe
@@ -41,7 +41,7 @@ instance Representable Exp where
 
 testExp1 = Plus (Plus (Const 0) (Const 1)) (Plus (Const 2) (Const 3))
 
-instance Zipper Exp where
+instance Zipper Exp
 
 
 
@@ -57,8 +57,10 @@ downExp = down
 fContext :: Loc Exp (HCons (Ctx (Rep Exp)) HNil)
 fContext = fromJust . down . enter $ testExp1
 
-test2 :: Exp
-test2 = val fContext
+fContext2 :: Exp
+fContext2 = fst . fromJust . (\(Loc f (HCons c cs)) -> next' c f) $ fContext
+--test2 :: Exp
+--test2 = val fContext2
 
 test3 :: Exp
 test3 = val . fromJust . up $ fContext
