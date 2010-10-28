@@ -74,7 +74,7 @@ class ( Representable  f
       , Typeable       f
       , Fillable  (Rep f)
       , Firstable (Rep f)
-      , Nextable  (Rep f)) => Zipper f
+      , Nextable  (Rep f) ) => Zipper f
 
 instance Zipper Int
 instance Zipper Char
@@ -180,7 +180,7 @@ instance (Firstable f) => Firstable (C c f) where
 -- | Next
 
 class Nextable f where
-    next' :: (Zipper a, Zipper b) => Ctx f -> a -> Maybe (b, Ctx f)
+    next' :: (Typeable a, Zipper b) => Ctx f -> a -> Maybe (b, Ctx f)
     
 instance Nextable U where
     next' _ _ = Nothing
@@ -200,7 +200,7 @@ instance (Nextable f, Nextable g) => Nextable (f :+: g) where
 
 instance (Nextable f, Nextable g, Fillable f, Firstable g) => Nextable (f :*: g) where
     next' (C1 c y) x = mapSnd (flip C1 y) <$> next' c x
-                   <|> (\x' (y',c') -> (y', C2 x' c')) <$> fill' c x <*> first' y
+                    <|> (\x' (y',c') -> (y', C2 x' c')) <$> fill' c x <*> first' y
     next' (C2 x c) y = mapSnd (C2 x) <$> next' c y 
 
 instance Nextable (Rec f) where
