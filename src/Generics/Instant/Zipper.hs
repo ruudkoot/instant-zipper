@@ -9,9 +9,9 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 
-{-# OPTIONS_GHC -Wall             #-}
+{-# OPTIONS_GHC -Wall            #-}
 
-module Generics.Instant.ZipperSSHetero where
+module Generics.Instant.Zipper where
 
 --import Data.Maybe
 import Data.Typeable
@@ -22,42 +22,35 @@ import Control.Applicative
 
 import Generics.Instant
 
-{-deriving instance (Typeable U)
+{-
+deriving instance (Typeable U)
 deriving instance (Typeable2 (:+:))
 deriving instance (Typeable2 (:*:))
 deriving instance (Typeable1 Rec)
 deriving instance (Typeable1 Var)
-deriving instance (Typeable2 C)-}
+deriving instance (Typeable2 C)
+-}
+
+-- | Utility
 
 impossible :: a
 impossible = error "impossible"
 
-{-
-class Zipper f where
-    data Ctx f :: * -> *
-    cmapA       :: (r -> Maybe r') -> Ctx f r -> Maybe (Ctx f r')
-    fill        :: Ctx f r -> r -> f r
-    first, last :: (r -> Ctx f r -> a) -> f r -> Maybe a
-    next, prev  :: (r -> Ctx f r -> a) -> Ctx f r -> r -> Maybe a
--}
+mapFst :: (a -> c) -> (a,b) -> (c,b)
+mapFst f (a,b) = (f a, b)
 
--- | Initialization
-
-createZipper :: (Zipper f) => f -> Loc f HNil
-createZipper f = enter f
+mapSnd :: (b -> d) -> (a,b) -> (a,d)
+mapSnd f (a,b) = (a, f b)
 
 -- | Basic constructs
 
-data HNil = HNil
-data HCons e l = HCons e l
+data Epsilon    = Epsilon
+data (:<:) c cs = c :<: cs
 
---data WCtx where
---    WCtx  :: Zipper f => Ctx (Rep f) -> WCtx
-    
 data Loc f c = Loc { val :: f, ctxs :: c }
 
-enter :: Zipper f => f -> Loc f HNil
-enter f = Loc f HNil
+enter :: Zipper f => f -> Loc f Epsilon
+enter f = Loc f Epsilon
 
 {-
 leave :: Zipper f => Loc f -> f
@@ -65,25 +58,29 @@ leave (Loc f []) = f
 leave loc = leave (fromMaybe (error "Error leaving") (up loc))
 -}
 
-up :: (Zipper f, Zipper f') => Loc f (HCons (Ctx (Rep f')) c) -> Maybe (Loc f' c)
-up (Loc f (HCons c cs))   = (\x -> Loc (to x) cs) <$> fill' c f
+up :: (Zipper f, Zipper f') => Loc f (Ctx (Rep f') :<: c) -> Maybe (Loc f' c)
+up (Loc f (c :<: cs))   = (\x -> Loc (to x) cs) <$> fill' c f
 
-down :: (Zipper f, Zipper f') => Loc f c -> Maybe (Loc f' (HCons (Ctx (Rep f)) c))
-down (Loc f cs) = (\(f', c) -> Loc f' (HCons c cs)) <$> first' (from f)
+down :: (Zipper f, Zipper f') => Loc f c -> Maybe (Loc f' (Ctx (Rep f) :<: c))
+down (Loc f cs) = (\(f', c) -> Loc f' (c :<: cs)) <$> first' (from f)
 
 
 --        where wrap :: (f', Ctx (Rep f)) -> Loc f'
 --              wrap (f', c) = Loc f' (Push (fromJust . gcast $ c) cs)
 
--- | ZipperA
+-- | Zipper
 
-class (Representable f, Typeable f, Fillable (Rep f), Firstable (Rep f), Nextable (Rep f)) => Zipper f
+class ( Representable  f
+      , Typeable       f
+      , Fillable  (Rep f)
+      , Firstable (Rep f)
+      , Nextable  (Rep f)) => Zipper f
 
 instance Zipper Int
+instance Zipper Char
+instance Zipper Float
 
-
-
--- | Zipper
+-- | Zippable
 
 class Zippable f where
     data Ctx f :: * 
@@ -93,11 +90,6 @@ instance Zippable Int where
     
 instance Zippable U where
     data Ctx U
-    --fill ctx f = impossible
-    --first _ U  = Nothing
-    --last  _ U  = Nothing
-    --next  _ _ _ = impossible
-    --prev  _ _ _ = impossible
     
 instance (Zippable f, Zippable g) => Zippable (f :+: g) where
     data Ctx (f :+: g) = CL (Ctx f) | CR (Ctx g)
@@ -122,7 +114,13 @@ class Fillable f where
 instance Fillable U where
     fill' = impossible
 
+instance Fillable Char where
+    fill' = impossible
+
 instance Fillable Int where
+    fill' = impossible
+
+instance Fillable Float where
     fill' = impossible
             
 instance (Fillable f, Fillable g) => Fillable (f :+: g) where
@@ -145,25 +143,7 @@ instance (Fillable f) => Fillable (C c f) where
     fill' (CC c) v = C <$> fill' c v
     
    
-{-    
-fill :: (Rewritable f, Rewritable f') => Ctx f -> f -> f'
-fill = 
-
-class Fillable f where
-    fill        :: Ctx f -> f -> f
--}
-
-
 -- | First
-
---first = undefined
-
-mapFst :: (a -> c) -> (a,b) -> (c,b)
-mapFst f (a,b) = (f a, b)
-
-mapSnd :: (b -> d) -> (a,b) -> (a,d)
-mapSnd f (a,b) = (a, f b)
-
 
 class Firstable f where
     first' :: (Zipper a) => f -> Maybe (a, Ctx f)
@@ -171,7 +151,13 @@ class Firstable f where
 instance Firstable U where
     first' _ = Nothing
 
+instance Firstable Char where
+    first' _ = Nothing -- impossible?
+
 instance Firstable Int where
+    first' _ = Nothing -- impossible?
+    
+instance Firstable Float where
     first' _ = Nothing -- impossible?
             
 instance (Firstable f, Firstable g) => Firstable (f :+: g) where
@@ -199,6 +185,15 @@ class Nextable f where
 instance Nextable U where
     next' _ _ = Nothing
 
+instance Nextable Char where
+    next' _ _ = Nothing
+
+instance Nextable Int where
+    next' _ _ = Nothing
+
+instance Nextable Float where
+    next' _ _ = Nothing
+
 instance (Nextable f, Nextable g) => Nextable (f :+: g) where
     next' (CL c) x = mapSnd CL <$> next' c x
     next' (CR c) y = mapSnd CR <$> next' c y
@@ -216,6 +211,4 @@ instance Nextable (Var f) where
 
 instance (Nextable f) => Nextable (C c f) where
     next' (CC v) x = mapSnd CC <$> next' v x
-    
-instance Nextable Int where
-    next' _ _ = impossible
+

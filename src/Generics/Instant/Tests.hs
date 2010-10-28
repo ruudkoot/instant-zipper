@@ -9,11 +9,11 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
-module Generics.Instant.TestsSSHetero where
+module Generics.Instant.Tests where
 
 import Generics.Instant
 import Generics.Instant.TH
-import Generics.Instant.ZipperSSHetero
+import Generics.Instant.Zipper
 import Generics.Instant.Rewriting
 
 import Data.Maybe
@@ -51,14 +51,14 @@ firstHole = fst . fromJust . first' . from
 test :: Exp
 test = firstHole testExp1
 
-downExp :: Loc Exp c -> Maybe (Loc Exp (HCons (Ctx (Rep Exp)) c))
+downExp :: Loc Exp cs -> Maybe (Loc Exp (Ctx (Rep Exp) :<: cs))
 downExp = down
 
-fContext :: Loc Exp (HCons (Ctx (Rep Exp)) HNil)
+fContext :: Loc Exp (Ctx (Rep Exp) :<: Epsilon)
 fContext = fromJust . down . enter $ testExp1
 
 fContext2 :: Exp
-fContext2 = fst . fromJust . (\(Loc f (HCons c cs)) -> next' c f) $ fContext
+fContext2 = fst . fromJust . (\(Loc f (c :<: cs)) -> next' c f) $ fContext
 --test2 :: Exp
 --test2 = val fContext2
 
