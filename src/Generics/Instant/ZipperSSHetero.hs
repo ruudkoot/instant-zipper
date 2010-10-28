@@ -13,22 +13,23 @@
 
 module Generics.Instant.ZipperSSHetero where
 
-import Data.Maybe
+--import Data.Maybe
 import Data.Typeable
-import Debug.Trace
+--import Debug.Trace
 
 import Control.Applicative
-import Control.Monad
+--import Control.Monad
 
 import Generics.Instant
 
-deriving instance (Typeable U)
+{-deriving instance (Typeable U)
 deriving instance (Typeable2 (:+:))
 deriving instance (Typeable2 (:*:))
 deriving instance (Typeable1 Rec)
 deriving instance (Typeable1 Var)
-deriving instance (Typeable2 C)
+deriving instance (Typeable2 C)-}
 
+impossible :: a
 impossible = error "impossible"
 
 {-
@@ -76,7 +77,7 @@ down (Loc f cs) = (\(f', c) -> Loc f' (HCons c cs)) <$> first' (from f)
 
 -- | ZipperA
 
-class (Representable f, Typeable f, Typeable (Rep f), Fillable (Rep f), Firstable (Rep f), Nextable (Rep f)) => Zipper f
+class (Representable f, Typeable f, Fillable (Rep f), Firstable (Rep f), Nextable (Rep f)) => Zipper f
 
 instance Zipper Int
 
