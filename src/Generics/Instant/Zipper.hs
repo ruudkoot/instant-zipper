@@ -7,11 +7,25 @@
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
 
 {-# OPTIONS_GHC -Wall            #-}
 
-module Generics.Instant.Zipper where
+module Generics.Instant.Zipper
+( module Data.Typeable,
+  module Generics.Instant,
+  -- *
+  Zipper,
+  Ctx,
+  Loc,
+  Epsilon,
+  (:<:),
+  -- *
+  enter,
+  down,
+  up
+) where
 
 --import Data.Maybe
 import Data.Typeable
@@ -44,10 +58,12 @@ mapSnd f (a,b) = (a, f b)
 
 -- | Basic constructs
 
-data Epsilon    = Epsilon
-data (:<:) c cs = c :<: cs
+data Epsilon    = Epsilon                     deriving (Show)
+data (:<:) c cs = c :<: cs                    deriving (Show)
 
-data Loc f c = Loc { val :: f, ctxs :: c }
+infixr 5 :<:
+
+data Loc h c = Loc { hole :: h, context :: c }    deriving (Show)
 
 enter :: Zipper f => f -> Loc f Epsilon
 enter f = Loc f Epsilon
@@ -59,6 +75,7 @@ leave loc = leave (fromMaybe (error "Error leaving") (up loc))
 -}
 
 up :: (Zipper f, Zipper f') => Loc f (Ctx (Rep f') :<: c) -> Maybe (Loc f' c)
+-- up (Log f Epsilon) ?
 up (Loc f (c :<: cs))   = (\x -> Loc (to x) cs) <$> fill' c f
 
 down :: (Zipper f, Zipper f') => Loc f c -> Maybe (Loc f' (Ctx (Rep f) :<: c))
@@ -83,7 +100,7 @@ instance Zipper Float
 -- | Zippable
 
 class Zippable f where
-    data Ctx f :: * 
+    data Ctx f :: *
     
 instance Zippable Int where
     data Ctx Int
@@ -105,6 +122,15 @@ instance (Zippable a) => Zippable (Var a) where
     
 instance (Zippable f) => Zippable (C c f) where
     data Ctx (C c f) = CC (Ctx f)
+
+-- Requires GHC 7 :p
+deriving instance (Show (Ctx Int))
+deriving instance (Show (Ctx U))
+deriving instance (Show (Ctx f), Show (Ctx g)) => (Show (Ctx (f :+: g)))
+deriving instance (Show f, Show g, Show (Ctx f), Show (Ctx g)) => (Show (Ctx (f :*: g)))
+deriving instance (Show (Ctx (Rec a)))
+deriving instance (Show (Ctx (Var a)))
+deriving instance (Show (Ctx f)) => (Show (Ctx (C c f)))
 
 -- | Fill
 
