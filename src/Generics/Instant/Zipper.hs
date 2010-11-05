@@ -85,6 +85,31 @@ down (Loc f cs) = (\(f', c) -> Loc f' (c :<: cs)) <$> first' (from f)
 --        where wrap :: (f', Ctx (Rep f)) -> Loc f'
 --              wrap (f', c) = Loc f' (Push (fromJust . gcast $ c) cs)
 
+
+-- | Right
+
+{-
+right :: (Typeable hole) => Loc hole ctx -> Maybe (Loc hole ctx)
+--right (Loc h Epsilon   ) = Nothing
+right (Loc h (c :<: cs)) = case next' c h of
+                                Nothing       -> undefined --Nothing
+                                Just (h', c') -> undefined --Just (Loc h' (c' :<: cs))
+-}
+{-
+right :: (Typeable hole, Rightable ctx) => Loc hole ctx -> Maybe (Loc hole ctx)
+right (Loc hole ctx) = right' hole ctx
+
+class Rightable ctx where
+    right' :: (Typeable hole) => hole -> ctx -> Maybe (Loc hole ctx)
+    
+instance Rightable Epsilon where
+    right' _ _          = Nothing
+    
+instance Rightable (c :<: cs) where
+    right' h (c :<: cs) = case next' c h of
+                                Nothing       -> Nothing
+                                Just (h', c') -> undefined Just (Loc h' (c' :<: cs))
+-}
 -- | Zipper
 
 class ( Representable  f
