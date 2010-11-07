@@ -49,13 +49,13 @@ mapSnd f (a,b) = (a, f b)
 
 -- | Basic constructs
 
-data HList l where
-    Empty :: HList Epsilon
-    Next  :: a -> HList cs -> HList (a :<: cs)
+--data HList l where
+--    Empty :: HList Epsilon
+--    Next  :: a -> HList cs -> HList (a :<: cs)
 
 data HCtx hole root l where
-    Empty :: HCtx x x Epsilon
-    Next  :: a -> HCtx x x cs -> HCtx x x (a :<: cs)
+    Empty :: HCtx hole hole Epsilon
+    Next  :: Ctx (Rep parent) -> HCtx parent root cs -> HCtx hole root (parent :<: cs)
 
 {-
 data Ctxs h r where
@@ -65,22 +65,24 @@ data Ctxs h r where
 data Epsilon = Epsilon
 data (:<:) c cs = c :<: cs
 
+{-
 length' :: HList l -> Int
 length' Empty = 0
 length' (Next e cs) = 1 + length' cs
 
 head' :: HList (a :<: cs) -> a
 head' (Next e cs) = e
+-}
 
 
-leave :: Loc f (Ctxs f c r) -> h
-leave (Loc f Empty) = f
-leave (Loc f (Add c cs)) = leave (Loc (to (fromJust  (fill' c f))) cs)
+leave :: (Zipper h) => Loc h r c -> r
+leave (Loc h Empty) = h
+leave (Loc h (Next c cs)) = leave (Loc (to (fromJust  (fill' c h))) cs)
 
-data Loc f c = Loc { val :: f, ctxs :: c }
+data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
 
-enter :: Zipper f => f -> Loc f Epsilon
-enter f = Loc f Epsilon
+enter :: Zipper f => f -> Loc f f Epsilon
+enter f = Loc f Empty
 
 {-
 leave :: Zipper f => Loc f -> f
@@ -88,32 +90,14 @@ leave (Loc f []) = f
 leave loc = leave (fromMaybe (error "Error leaving") (up loc))
 -}
 
-up :: (Zipper f, Zipper f') => Loc f (Ctx (Rep f') :<: c) -> Maybe (Loc f' c)
-up (Loc f (c :<: cs))   = (\x -> Loc (to x) cs) <$> fill' c f
+up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Maybe (Loc h' r c)
+up (Loc h (Next c cs))   = (\x -> Loc (to x) cs) <$> fill' c h
 
+{-
 down :: (Zipper f, Zipper f') => Loc f c -> Maybe (Loc f' (Ctx (Rep f) :<: c))
 down (Loc f cs) = (\(f', c) -> Loc f' (c :<: cs)) <$> first' (from f)
+-}
 
-
-class IsTop f where
-    isTop :: f -> Bool
-
-instance IsTop (Loc f Epsilon) where
-    isTop _ = True
-    
-instance IsTop (Loc f (c :<: cs)) where
-    isTop _ = False
-        
-{-
-class Leave f a where
-    leave :: f -> a
-    
-instance Leave (Loc a Epsilon) a where
-    leave (Loc a _) = a
-
-instance (c~Ctx (Rep c')) => Leave (Loc b (c :<: cs)) a where
-    leave = leave . fromJust. up 
-  -}      
 --        where wrap :: (f', Ctx (Rep f)) -> Loc f'
 --              wrap (f', c) = Loc f' (Push (fromJust . gcast $ c) cs)
 
