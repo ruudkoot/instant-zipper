@@ -2,10 +2,15 @@
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
 
 module Generics.Instant.Zipper.Test.Term where
 
 import Data.Maybe
+import Data.Typeable
+
+import Generics.Instant
+import Generics.Instant.TH
 import Generics.Instant.Zipper
 
 -- | Datatype
@@ -38,6 +43,7 @@ instance Representable Term where
 -- | Zipper
 
 instance Zipper Term
+instance Zipper String
     
 -- | fac
 
@@ -48,23 +54,26 @@ fac = Lambda "n"
                (App  (Var' "fac")
                      (App (Var' "pred") (Var' "n")))))
 
---fixFac :: (Zipper f') => Maybe (Loc f' (Ctx (Rep Term) :<: Epsilon))
-fixFac :: Maybe (Loc Term (Ctx (Rep Term) :<: Epsilon))
-fixFac =  return (enter fac)
-            >>= down
---          >>= down
---          >>= right
---          >>= right
---          >>= down
---          >>= down
---          >>= return . setHole_Term (Var "*")
---          >>= return . fromZipper_Term
+_u = undefined
 
-t0 :: Loc Term Epsilon
+--fixFac :: (Zipper f') => Maybe (Loc f' (Ctx (Rep Term) :<: Epsilon))
+fixFac :: Maybe Term 
+fixFac =  return (enter fac)
+      >>= down' (_u :: Term)
+      >>= down' (_u :: Term)
+      >>= right' (_u :: Term)
+      >>= right' (_u :: Term)
+      >>= down' (_u :: Term)
+      >>= down' (_u :: Term)
+      >>= down' (_u :: String)
+      >>= return . (\(Loc _ cs) -> Loc ("*") cs)
+      >>= return . leave
+
+t0 :: Loc Term Term Epsilon
 t0 = enter fac
 
-t1 :: Loc Term (Ctx (Rep Term) :<: Epsilon)
+t1 :: Loc Term Term (Term :<: Epsilon)
 t1 = fromJust $ down t0
 
-t2 :: Loc Term (Ctx (Rep Term) :<: Ctx (Rep Term) :<: Epsilon)
-t2 = fromJust $ down t1
+t2 :: Term --(Term :<: Term :<: Epsilon)
+t2 = val $ fromJust $ down t1

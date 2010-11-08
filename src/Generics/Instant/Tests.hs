@@ -13,9 +13,10 @@ module Generics.Instant.Tests where
 
 import Generics.Instant
 import Generics.Instant.TH
-import Generics.Instant.Zipper
+import Generics.Instant.Zipper2
 import Generics.Instant.Rewriting
 
+import Control.Monad
 import Data.Maybe
 import Data.Typeable
 import Debug.Trace
@@ -51,19 +52,18 @@ firstHole = fst . fromJust . first' . from
 test :: Exp
 test = firstHole testExp1
 
-downExp :: Loc Exp cs -> Maybe (Loc Exp (Ctx (Rep Exp) :<: cs))
-downExp = down
+--fContext :: Loc Exp Exp (Exp :<: Epsilon)
+fContext = fromJust . down (undefined :: Exp) . enter $ testExp1
 
-fContext :: Loc Exp (Ctx (Rep Exp) :<: Epsilon)
-fContext = fromJust . down . enter $ testExp1
-
-fContext2 :: Exp
-fContext2 = fst . fromJust . (\(Loc f (c :<: cs)) -> next' c f) $ fContext
+--test1 :: Exp
+test1 = val fContext
+--fContext2 :: Exp
+--fContext2 = fst . fromJust . (\(Loc f (c :<: cs)) -> next' c f) $ fContext
 --test2 :: Exp
 --test2 = val fContext2
 
-test3 :: Exp
-test3 = val . fromJust . up $ fContext
+--test3 :: Exp
+--test3 = val . fromJust . up $ fContext
 
 
 --test4 :: Exp

@@ -7,27 +7,18 @@
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
+
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 
 {-# OPTIONS_GHC -Wall            #-}
 
-module Generics.Instant.Zipper
-( module Data.Typeable,
-  module Generics.Instant,
-  -- *
-  Zipper,
-  Ctx,
-  Loc,
-  Epsilon,
-  (:<:),
-  -- *
-  enter,
-  down,
-  up
-) where
+module Generics.Instant.Zipper where
 
---import Data.Maybe
+import Data.Maybe
 import Data.Typeable
 --import Debug.Trace
 
@@ -58,58 +49,41 @@ mapSnd f (a,b) = (a, f b)
 
 -- | Basic constructs
 
-data Epsilon    = Epsilon                     deriving (Show)
-data (:<:) c cs = c :<: cs                    deriving (Show)
+data HCtx hole root l where
+    Empty :: HCtx hole hole Epsilon
+    Next  :: (Zipper parent) => Ctx (Rep parent) -> HCtx parent root cs -> HCtx hole root (parent :<: cs)
+
+data Epsilon = Epsilon deriving Show
+data (:<:) c cs = c :<: cs deriving Show
 
 infixr 5 :<:
 
-data Loc h c = Loc { hole :: h, context :: c }    deriving (Show)
+leave :: (Zipper h) => Loc h r c -> r
+leave (Loc h Empty) = h
+leave (Loc h (Next c cs)) = leave (Loc (to (fromJust  (fill' c h))) cs)
 
-enter :: Zipper f => f -> Loc f Epsilon
-enter f = Loc f Epsilon
+data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
 
-{-
-leave :: Zipper f => Loc f -> f
-leave (Loc f []) = f
-leave loc = leave (fromMaybe (error "Error leaving") (up loc))
--}
+enter :: Zipper h => h -> Loc h h Epsilon
+enter h = Loc h Empty
 
-up :: (Zipper f, Zipper f') => Loc f (Ctx (Rep f') :<: c) -> Maybe (Loc f' c)
--- up (Log f Epsilon) ?
-up (Loc f (c :<: cs))   = (\x -> Loc (to x) cs) <$> fill' c f
+up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Maybe (Loc h' r c)
+up (Loc h (Next c cs))   = (\x -> Loc (to x) cs) <$> fill' c h
 
-down :: (Zipper f, Zipper f') => Loc f c -> Maybe (Loc f' (Ctx (Rep f) :<: c))
-down (Loc f cs) = (\(f', c) -> Loc f' (c :<: cs)) <$> first' (from f)
+down :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
+down (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
 
+down' :: (Zipper h, Zipper h') => h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
+down' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
 
---        where wrap :: (f', Ctx (Rep f)) -> Loc f'
---              wrap (f', c) = Loc f' (Push (fromJust . gcast $ c) cs)
+right :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
+right (Loc h Empty) = Nothing
+right (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
 
+right' :: (Zipper h, Zipper h') => h' -> Loc h r cs -> Maybe (Loc h' r cs)
+right' _ (Loc h Empty) = Nothing
+right' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
 
--- | Right
-
-{-
-right :: (Typeable hole) => Loc hole ctx -> Maybe (Loc hole ctx)
---right (Loc h Epsilon   ) = Nothing
-right (Loc h (c :<: cs)) = case next' c h of
-                                Nothing       -> undefined --Nothing
-                                Just (h', c') -> undefined --Just (Loc h' (c' :<: cs))
--}
-{-
-right :: (Typeable hole, Rightable ctx) => Loc hole ctx -> Maybe (Loc hole ctx)
-right (Loc hole ctx) = right' hole ctx
-
-class Rightable ctx where
-    right' :: (Typeable hole) => hole -> ctx -> Maybe (Loc hole ctx)
-    
-instance Rightable Epsilon where
-    right' _ _          = Nothing
-    
-instance Rightable (c :<: cs) where
-    right' h (c :<: cs) = case next' c h of
-                                Nothing       -> Nothing
-                                Just (h', c') -> undefined Just (Loc h' (c' :<: cs))
--}
 -- | Zipper
 
 class ( Representable  f
@@ -125,7 +99,7 @@ instance Zipper Float
 -- | Zippable
 
 class Zippable f where
-    data Ctx f :: *
+    data Ctx f :: * 
     
 instance Zippable Int where
     data Ctx Int
@@ -147,15 +121,6 @@ instance (Zippable a) => Zippable (Var a) where
     
 instance (Zippable f) => Zippable (C c f) where
     data Ctx (C c f) = CC (Ctx f)
-
--- Requires GHC 7 :p
-deriving instance (Show (Ctx Int))
-deriving instance (Show (Ctx U))
-deriving instance (Show (Ctx f), Show (Ctx g)) => (Show (Ctx (f :+: g)))
-deriving instance (Show f, Show g, Show (Ctx f), Show (Ctx g)) => (Show (Ctx (f :*: g)))
-deriving instance (Show (Ctx (Rec a)))
-deriving instance (Show (Ctx (Var a)))
-deriving instance (Show (Ctx f)) => (Show (Ctx (C c f)))
 
 -- | Fill
 
