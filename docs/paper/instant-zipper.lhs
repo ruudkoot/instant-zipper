@@ -168,9 +168,11 @@ Another important function for our zipper is the first function. The first funct
 
 Notice that when this first' function is invoked with a type for a that is not present in one of the holes of Derivative f, the function will produce Nothing. The function will create a hole and context for the types that are given, where the hole is the leftmost hole with the specified type. 
 
-> instance (Firstable f, Firstable g) => Firstable (f :*: g) where
->    first' (l :*: r) = mapSnd (flip C1 r) <$> first' l
->                   <|> mapSnd (C2 l) <$> first' r
+> instance (Firstable f, Firstable g) => 
+>               Firstable (f :*: g) where
+>    first' (l :*: r) = 
+>          mapSnd (flip C1 r) <$> first' l
+>      <|> mapSnd (C2 l) <$> first' r
 >
 > instance (Typeable f) => Firstable (Rec f) where
 >    first' (Rec v) = (\x -> (x, Recursive)) <$> cast v
@@ -178,7 +180,51 @@ Notice that when this first' function is invoked with a type for a that is not p
 The product instance tries to create a result to the left first, if it fails to the right. If both fail no context can be given.
 
 
-The fact that first' and fill' works this way is both a curse and a blessing. we will later see that this approach need 
+As we have seen, the behaviour of first' and fill' is determined by the type with which they are invoked. This because the way casting works. We are now going to use these functions which operate on values and contexts and use them to create functions which work on the Loc datatype. We will see that the extra type-information needed to use the first' and fill' functions drives the way in which we define our up and down functions and ultimately our Loc and Context datatypes.
+
+
+We would like to implement the up function (the function that goes one hole up in the context) in the following way:
+
+> up (Loc h (Push c cs)) = (\x -> Loc (to x) cs) <$> fill' c h
+
+We fill the top hole with the current value, yielding a new value and the rest of the context. We cannot use casting here to get the types right, we need explicit typing on all variables because the fill' function already contains a cast, and thus needs fully explicit types. If we try to use another cast to get the types right, we get an ambiguous type occurence (similar to the read . show problem). Of course a solution here is to require explicit type annotations on every use of the up function, but we can be smarter. Using a trick similar to \cite{HList-HW04}, extended with GADTs to guide the pattern matching, we can keep all the types of the previous contexts in our Context GADT. We build a list at the type-level, which contains the type of each context we have visited, this way, when we go up, we can retrieve the type in this type-level list instead of asking the user for extra information. The result looks as follows:
+
+> --List at type-level
+> data Epsilon = Epsilon
+> data (:<:) c cs = c :<: cs
+> data Context ... l where
+>    Empty :: Context ... Epsilon
+>    Push  :: (Zipper parent) => Derivative (Rep parent)
+>                             -> Context ... cs
+>                             -> Context ... (parent :<: cs)
+>
+> up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Loc h' r c
+> up (Loc h (Push c cs)) = fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
+
+Note that the additional type information also prevents us form going up in an empty context. We can also add fromJust because we can be sure the result will be correct.
+
+
+We still left some information open in our Context datatype, this has to do with the leave function. The leave function repeatedly applies the up function until we are left with our original datatype.
+
+> leave (Loc h Empty) = h
+> leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
+
+To be able to give this function a result type, we need to know the type of the root of our tree. What we also need is the guarantee that the type of the top hole equals the type of the root type, else the Empty case won't typecheck. Thus we get:
+
+> data Loc hole root c = 
+>    Loc { focus :: hole, 
+>          context :: Context hole root c }
+>
+> data Context hole root l where
+>    Empty :: Context hole hole Epsilon
+>    Push  :: (Zipper parent) => 
+>            Derivative (Rep parent)
+>         -> Context parent root cs
+>         -> Context hole root (parent :<: cs)
+>
+> leave :: (Zipper h) => Loc h r c -> r
+> leave (Loc h Empty) = h
+> leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
 
 \subsection{Context}
 

@@ -14,10 +14,7 @@ import Generics.Instant
 import Generics.Instant.TH
 import Generics.Instant.Zipper
 
-import qualified Language.Haskell.TH as TH
-
 import Data.Typeable
-import Control.Monad.Error
 
 -- | Datatype
 
@@ -44,7 +41,7 @@ data Fam a where
     Salary   ::             Fam Salary
     Name     ::             Fam Name
     List     :: (Show a) => Fam a    -> Fam [a]
-    
+
 deriving instance Show (Fam a)
     
 instance Family Fam

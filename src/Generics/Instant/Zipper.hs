@@ -64,7 +64,7 @@ setHole v (Loc _ cs) = Loc v cs
 
 leave :: (Zipper h) => Loc h r c -> r
 leave (Loc h Empty) = h
-leave (Loc h (Push c cs)) = leave (Loc (to (fromJust  (fill' c h))) cs)
+leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
 
 enter :: Zipper h => h -> Loc h h Epsilon
 enter h = Loc h Empty
