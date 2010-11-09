@@ -9,14 +9,15 @@
 
 module Generics.Instant.Zipper.Test.Dept where
 
-import Data.Maybe
-import Data.Typeable
-
 import Generics.Instant
 import Generics.Instant.TH
 import Generics.Instant.Zipper
 
 -- | Datatype
+
+type Salary    = Float
+type Manager   = Employee
+type Name      = String
 
 data Dept = D Manager [Employee]
     deriving (Eq, Show, Typeable)
@@ -24,22 +25,29 @@ data Dept = D Manager [Employee]
 data Employee = E Name Salary
     deriving (Eq, Show, Typeable)
 
-type Salary    = Float
-type Manager   = Employee
-type Name      = String
-
-
 -- | Representation
 
 $(deriveAll ''Dept)
 $(deriveAll ''Employee)
+
+-- | Family
+
+data Family a where
+    Dept     ::             Family Dept
+    Employee ::             Family Employee
+    Salary   ::             Family Salary
+    Name     ::             Family Name
+    List     :: Family a -> Family [a]
+    deriving Show
+    
+instance Family Family
 
 -- | Zipper
 
 instance Zipper Dept
 instance Zipper Employee
     
--- | dept
+-- | Example
 
 dept :: Dept
 dept = D doaitse [johan, sean, pedro]
@@ -49,45 +57,20 @@ dept = D doaitse [johan, sean, pedro]
           sean     = E "Sean"     2600
           pedro    = E "Pedro"    2400
 
-data Fam a where
-    Employee     ::          Fam Employee
-    Float        ::          Fam Float
-    String       ::          Fam String
-    List         :: Fam a -> Fam [a]
-    deriving Show
-    
-instance Family Fam
-
 fixDept :: Maybe Dept
 fixDept =  return (enter dept)
-        >>= down' Employee
-        >>= down' String
+        >>= down  Employee
+        >>= down  Name
         >>= return . setHole "Prof. dr. Swierstra"
-        >>= right' Float
+        >>= right Salary
         >>= return . setHole 9000.0
         >>= up
         >>= up
-        >>= downR' (List Employee)
-        >>= down' (List Employee)
-        >>= down' (List Employee)
-        >>= down' Employee
-        >>= downR' Float
+        >>= downR (List Employee)
+        >>= down  (List Employee)
+        >>= down  (List Employee)
+        >>= down  Employee
+        >>= downR Salary
         >>= return . setHole 100.0
         >>= return . leave
-
-
-intoDept :: Dept
-intoDept = undefined
-
-intoEmployee :: Employee
-intoEmployee = undefined
-
-intoList :: a -> [a]
-intoList _ = undefined
-
-intoFloat :: Float
-intoFloat = undefined
-
-intoString :: String
-intoString = undefined
 

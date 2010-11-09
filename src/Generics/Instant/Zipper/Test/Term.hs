@@ -1,4 +1,5 @@
 {-# LANGUAGE EmptyDataDecls            #-}
+{-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
@@ -46,10 +47,18 @@ instance Representable Term where
 
 $(deriveAll ''Term)
 
+-- | Family
+
+data Fam a where
+    Term   :: Fam Term
+    String :: Fam String
+    deriving Show
+    
+instance Family Fam
+
 -- | Zipper
 
 instance Zipper Term
-instance Zipper String
     
 -- | fac
 
@@ -60,26 +69,16 @@ fac = Lambda "n"
                (App  (Var' "fac")
                      (App (Var' "pred") (Var' "n")))))
 
-_u = undefined
 
---fixFac :: (Zipper f') => Maybe (Loc f' (Ctx (Rep Term) :<: Epsilon))
 fixFac :: Maybe Term 
 fixFac =  return (enter fac)
-      >>= down' (_u :: Term)
-      >>= down' (_u :: Term)
-      >>= right' (_u :: Term)
-      >>= right' (_u :: Term)
-      >>= down' (_u :: Term)
-      >>= down' (_u :: Term)
-      >>= down' (_u :: String)
-      >>= return . (\(Loc _ cs) -> Loc ("*") cs)
+      >>= down  Term
+      >>= down  Term
+      >>= right Term
+      >>= right Term
+      >>= down  Term
+      >>= down  Term
+      >>= down  String
+      >>= return . setHole "*"
       >>= return . leave
 
-t0 :: Loc Term Term Epsilon
-t0 = enter fac
-
-t1 :: Loc Term Term (Term :<: Epsilon)
-t1 = fromJust $ down t0
-
-t2 :: Term --(Term :<: Term :<: Epsilon)
-t2 = val $ fromJust $ down t1
