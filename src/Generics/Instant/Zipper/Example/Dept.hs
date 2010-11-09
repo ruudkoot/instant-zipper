@@ -51,8 +51,8 @@ instance Family Fam
 
 -- | Zipper
 
-instance Zippable Dept
-instance Zippable Employee
+instance Zipper Dept
+instance Zipper Employee
     
 -- | Example
 

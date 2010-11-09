@@ -44,37 +44,39 @@ data (:<:) c cs = c :<: cs deriving Show
 
 infixr 5 :<:
 
-data HCtx hole root l where
-    Empty :: HCtx hole hole Epsilon
-    Next  :: (Zipper parent) => Ctx (Rep parent) -> HCtx parent root cs -> HCtx hole root (parent :<: cs)
+data Loc hole root c = Loc { focus :: hole, context :: Context hole root c }
 
-data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
+data Context hole root l where
+    Empty :: Context hole hole Epsilon
+    Push  :: (Zipper parent) => Derivative (Rep parent)
+                             -> Context parent root cs
+                             -> Context hole root (parent :<: cs)
 
 type ZipperR = Either String
 
 -- | Navigation
 
 getHole :: Loc h r c -> h
-getHole = val
+getHole = focus
 
 setHole :: h -> Loc h r c -> Loc h r c
 setHole v (Loc _ cs) = Loc v cs
 
 leave :: (Zipper h) => Loc h r c -> r
 leave (Loc h Empty) = h
-leave (Loc h (Next c cs)) = leave (Loc (to (fromJust  (fill' c h))) cs)
+leave (Loc h (Push c cs)) = leave (Loc (to (fromJust  (fill' c h))) cs)
 
 enter :: Zipper h => h -> Loc h h Epsilon
 enter h = Loc h Empty
 
 
 up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Loc h' r c
-up (Loc h (Next c cs))   = fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
+up (Loc h (Push c cs))   = fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
 
 -- | Down left
 
 downL_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
-downL_ (Loc h cs) = maybe (Left "Error going down left") (\(h', c) -> Right (Loc h' (Next c cs))) $ first' (from h)
+downL_ (Loc h cs) = maybe (Left "Error going down left") (\(h', c) -> Right (Loc h' (Push c cs))) $ first' (from h)
 
 downL' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
 downL' _ = downL_
@@ -96,7 +98,7 @@ down = downL
 -- | Down Right
 
 downR_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
-downR_ (Loc h cs) = maybe (Left "Error going down right") (\(h', c) -> Right (Loc h' (Next c cs))) $ last' (from h)
+downR_ (Loc h cs) = maybe (Left "Error going down right") (\(h', c) -> Right (Loc h' (Push c cs))) $ last' (from h)
 
 downR' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
 downR' _ = downR_ 
@@ -107,7 +109,7 @@ downR v = either (Left . (++ " with type " ++ show v)) Right . downR_
 -- | Right
 
 right_ :: (Zipper h, Zipper h') => Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
-right_ (Loc h (Next c cs)) = maybe (Left "Error going right") (\(h', c') -> Right (Loc h' (Next c' cs))) $ next' c h
+right_ (Loc h (Push c cs)) = maybe (Left "Error going right") (\(h', c') -> Right (Loc h' (Push c' cs))) $ next' c h
 
 right' :: (Zipper h, Zipper h') => h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
 right' _ = right_
@@ -118,7 +120,7 @@ right v = either (Left . (++ " with type " ++ show v)) Right . right_
 -- | Left
 
 left_ :: (Zipper h, Zipper h') => Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
-left_ (Loc h (Next c cs)) = maybe (Left "Error going left") (\(h', c') -> Right (Loc h' (Next c' cs))) $ prev' c h
+left_ (Loc h (Push c cs)) = maybe (Left "Error going left") (\(h', c') -> Right (Loc h' (Push c' cs))) $ prev' c h
 
 left' :: (Zipper h, Zipper h') => h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
 left' _ = left_
@@ -144,33 +146,33 @@ instance (Zipper a) => Zipper [a]
 -- | Derivable
 
 class Derivable f where
-    data Ctx f :: * 
+    data Derivative f :: * 
     
 instance Derivable Int where
-    data Ctx Int
+    data Derivative Int
     
 instance Derivable U where
-    data Ctx U
+    data Derivative U
     
 instance (Derivable f, Derivable g) => Derivable (f :+: g) where
-    data Ctx (f :+: g) = CL (Ctx f) | CR (Ctx g)
+    data Derivative (f :+: g) = CL (Derivative f) | CR (Derivative g)
     
 instance (Derivable f, Derivable g) => Derivable (f :*: g) where
-    data Ctx (f :*: g) = C1 (Ctx f) g | C2 f (Ctx g)
+    data Derivative (f :*: g) = C1 (Derivative f) g | C2 f (Derivative g)
     
 instance (Derivable a) => Derivable (Rec a) where
-    data Ctx (Rec a) = Recursive
+    data Derivative (Rec a) = Recursive
     
 instance (Derivable a) => Derivable (Var a) where
-    data Ctx (Var a) = Variable
+    data Derivative (Var a) = Variable
     
 instance (Derivable f) => Derivable (C c f) where
-    data Ctx (C c f) = CC (Ctx f)
+    data Derivative (C c f) = CC (Derivative f)
 
 -- | Fill
 
 class Fillable f where
-    fill' :: (Typeable a) => Ctx f -> a -> Maybe f
+    fill' :: (Typeable a) => Derivative f -> a -> Maybe f
 
 instance Fillable U where
     fill' = impossible
@@ -185,12 +187,12 @@ instance Fillable Float where
     fill' = impossible
             
 instance (Fillable f, Fillable g) => Fillable (f :+: g) where
---    fill :: Ctx (f :+: g) -> a -> (f :+: g)
+--    fill :: Derivative (f :+: g) -> a -> (f :+: g)
     fill' (CL l) v = L <$> fill' l v
     fill' (CR r) v = R <$> fill' r v
 
 instance (Fillable f, Fillable g) => Fillable (f :*: g) where
---    fill :: Ctx (f :+: g) -> a -> (f :+: g)
+--    fill :: Derivative (f :+: g) -> a -> (f :+: g)
     fill' (C1 c r) v = flip (:*:) r <$> fill' c v
     fill' (C2 l c) v = (l :*:) <$> fill' c v
 
@@ -207,7 +209,7 @@ instance (Fillable f) => Fillable (C c f) where
 -- | First
 
 class Firstable f where
-    first' :: (Zipper a) => f -> Maybe (a, Ctx f)
+    first' :: (Zipper a) => f -> Maybe (a, Derivative f)
 
 instance Firstable U where
     first' _ = Nothing
@@ -241,7 +243,7 @@ instance (Firstable f) => Firstable (C c f) where
 -- | Last
 
 class Lastable f where
-    last' :: (Zipper a) => f -> Maybe (a, Ctx f)
+    last' :: (Zipper a) => f -> Maybe (a, Derivative f)
 
 instance Lastable U where
     last' _ = Nothing
@@ -275,7 +277,7 @@ instance (Lastable f) => Lastable (C c f) where
 -- | Next
 
 class Nextable f where
-    next' :: (Typeable a, Zipper b) => Ctx f -> a -> Maybe (b, Ctx f)
+    next' :: (Typeable a, Zipper b) => Derivative f -> a -> Maybe (b, Derivative f)
     
 instance Nextable U where
     next' _ _ = Nothing
@@ -310,7 +312,7 @@ instance (Nextable f) => Nextable (C c f) where
 -- | Prev
 
 class Prevable f where
-    prev' :: (Typeable a, Zipper b) => Ctx f -> a -> Maybe (b, Ctx f)
+    prev' :: (Typeable a, Zipper b) => Derivative f -> a -> Maybe (b, Derivative f)
     
 instance Prevable U where
     prev' _ _ = Nothing

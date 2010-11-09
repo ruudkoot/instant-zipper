@@ -16,11 +16,22 @@
 
 \section{Implementing the Instant Zipper}
 
-A zipper consists of the part of the data structure which is currently \emph{in focus}, together with the \emph{one-hole context} in which it appears:
+A zipper consists of the part of the data structure which is currently \emph{in focus}, together with the \emph{context} in which it appears. Alternatively we can view the part of the data structure which is in focus as filling a \emph{hole} in the context.
 
-> data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
+> data Loc hole root ... = Loc
+>   { focus    :: hole
+>   , context  :: Context hole root ... }
 
-Loc, HCtx, Derivable
+The context is a stack of \emph{one-hole contexts}:
+
+> data Context hole root ... where
+>     Empty :: Context hole hole ...
+>     Push  :: (Zipper parent) =>
+>           Derivative (Rep parent)
+>       ->  Context   parent  root  ...
+>       ->  Context   hole    root  ...
+
+
 
 \subsection{Navigation}
 
