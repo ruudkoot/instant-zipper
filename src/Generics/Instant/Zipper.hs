@@ -18,7 +18,6 @@
 module Generics.Instant.Zipper where
 
 import Data.Maybe
-import Data.Either
 import Data.Typeable
 
 --import Debug.Trace
@@ -75,46 +74,60 @@ enter h = Loc h Empty
 up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Loc h' r c
 up (Loc h (Next c cs))   = fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
 
--- | Down
+-- | Down left
 
-downL :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
-downL (Loc h cs) = maybe (Left "Error going down") (\(h', c) -> Right (Loc h' (Next c cs))) $ first' (from h)
+downL_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL_ (Loc h cs) = maybe (Left "Error going down left") (\(h', c) -> Right (Loc h' (Next c cs))) $ first' (from h)
 
 downL' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
-downL' _ = downL
+downL' _ = downL_
 
-down :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
-down = downL
+downL :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL v = either (Left . (++ " with type " ++ show v)) Right . downL_
 
-down' :: (Zipper h, Zipper h', Family f) => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+-- | Down 
+
+down_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+down_ = downL_
+
+down' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
 down' = downL'
 
+down :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+down = downL
 
-downR :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
-downR (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> last' (from h)
+-- | Down Right
 
-downR' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
-downR' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> last' (from h)
+downR_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downR_ (Loc h cs) = maybe (Left "Error going down right") (\(h', c) -> Right (Loc h' (Next c cs))) $ last' (from h)
 
-{-
-right :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
-right (Loc _ Empty) = Nothing
-right (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
+downR' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downR' _ = downR_ 
 
-right' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r cs -> Maybe (Loc h' r cs)
-right' _ (Loc _ Empty) = Nothing
-right' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
+downR :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downR v = either (Left . (++ " with type " ++ show v)) Right . downR_
 
+-- | Right
 
+right_ :: (Zipper h, Zipper h') => Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+right_ (Loc h (Next c cs)) = maybe (Left "Error going right") (\(h', c') -> Right (Loc h' (Next c' cs))) $ next' c h
 
-left :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
-left (Loc _ Empty) = Nothing
-left (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> prev' c h
+right' :: (Zipper h, Zipper h') => h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+right' _ = right_
 
-left' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r cs -> Maybe (Loc h' r cs)
-left' _ (Loc _ Empty) = Nothing
-left' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> prev' c h
--}
+right :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+right v = either (Left . (++ " with type " ++ show v)) Right . right_
+
+-- | Left
+
+left_ :: (Zipper h, Zipper h') => Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+left_ (Loc h (Next c cs)) = maybe (Left "Error going left") (\(h', c') -> Right (Loc h' (Next c' cs))) $ prev' c h
+
+left' :: (Zipper h, Zipper h') => h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+left' _ = left_
+
+left :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+left v = either (Left . (++ " with type " ++ show v)) Right . left_
 
 -- | Zipper
 
