@@ -18,7 +18,9 @@
 module Generics.Instant.Zipper where
 
 import Data.Maybe
+import Data.Either
 import Data.Typeable
+
 --import Debug.Trace
 
 import Control.Applicative
@@ -52,6 +54,8 @@ infixr 5 :<:
 
 data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
 
+type ZipperR = Either String
+
 -- | Navigation
 
 getHole :: Loc h r c -> h
@@ -68,22 +72,22 @@ enter :: Zipper h => h -> Loc h h Epsilon
 enter h = Loc h Empty
 
 
-up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Maybe (Loc h' r c)
-up (Loc h (Next c cs))   = (\x -> Loc (to x) cs) <$> fill' c h
+up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Loc h' r c
+up (Loc h (Next c cs))   = fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
 
+-- | Down
 
-down :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
+downL :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL (Loc h cs) = maybe (Left "Error going down") (\(h', c) -> Right (Loc h' (Next c cs))) $ first' (from h)
+
+downL' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL' _ = downL
+
+down :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
 down = downL
 
-down' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
+down' :: (Zipper h, Zipper h', Family f) => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
 down' = downL'
-
-
-downL :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
-downL (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
-
-downL' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
-downL' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
 
 
 downR :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
@@ -92,7 +96,7 @@ downR (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> last' (from h)
 downR' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
 downR' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> last' (from h)
 
-
+{-
 right :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
 right (Loc _ Empty) = Nothing
 right (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
@@ -110,7 +114,7 @@ left (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> prev' c h
 left' :: (Zipper h, Zipper h', Family f) => f h' -> Loc h r cs -> Maybe (Loc h' r cs)
 left' _ (Loc _ Empty) = Nothing
 left' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> prev' c h
-
+-}
 
 -- | Zipper
 
