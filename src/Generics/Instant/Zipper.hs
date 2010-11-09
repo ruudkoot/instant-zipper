@@ -15,14 +15,35 @@
 
 {-# OPTIONS_GHC -Wall            #-}
 
-module Generics.Instant.Zipper where
+module Generics.Instant.Zipper (
+    module Control.Monad.Error,
+    module Data.Typeable,
+    module Generics.Instant,
+    module Generics.Instant.TH,
+    -- *
+    Family,
+    Zipper,
+    ZipperR,
+    -- *
+    enter,
+    leave,
+    up,
+    down,
+    downR,
+    left,
+    right,
+    getHole,
+    setHole
+) where
 
 import Control.Applicative
+import Control.Monad.Error
 
 import Data.Maybe
 import Data.Typeable
 
 import Generics.Instant
+import Generics.Instant.TH
 
 -- | Utility
 
@@ -344,4 +365,3 @@ instance Prevable (Var f) where
 instance (Prevable f) => Prevable (C c f) where
     prev' (CC v) x = mapSnd CC <$> prev' v x
 
--- | Type-level functions

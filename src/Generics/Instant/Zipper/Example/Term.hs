@@ -4,6 +4,7 @@
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
@@ -52,7 +53,8 @@ $(deriveAll ''Term)
 data Fam a where
     Term   :: Fam Term
     String :: Fam String
-    deriving Show
+
+deriving instance Show (Fam a)
     
 instance Family Fam
 
@@ -70,7 +72,7 @@ fac = Lambda "n"
                      (App (Var' "pred") (Var' "n")))))
 
 
-fixFac :: Maybe Term 
+fixFac :: ZipperR Term 
 fixFac =  return (enter fac)
       >>= down  Term
       >>= down  Term

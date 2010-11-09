@@ -10,11 +10,7 @@
 
 module Generics.Instant.Zipper.Example.Dept where
 
-import Generics.Instant
-import Generics.Instant.TH
 import Generics.Instant.Zipper
-
-import Data.Typeable
 
 -- | Datatype
 
@@ -61,7 +57,7 @@ dept = D doaitse [johan, sean, pedro]
           sean     = E "Sean"     2600
           pedro    = E "Pedro"    2400
 
-fixDept :: Either String Dept
+fixDept :: ZipperR Dept
 fixDept =  return (enter dept)
         >>= down  Employee
         >>= down  Name
