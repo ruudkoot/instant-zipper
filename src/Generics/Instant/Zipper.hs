@@ -27,15 +27,6 @@ import Control.Applicative
 
 import Generics.Instant
 
-{-
-deriving instance (Typeable U)
-deriving instance (Typeable2 (:+:))
-deriving instance (Typeable2 (:*:))
-deriving instance (Typeable1 Rec)
-deriving instance (Typeable1 Var)
-deriving instance (Typeable2 C)
--}
-
 -- | Utility
 
 impossible :: a
@@ -58,23 +49,46 @@ data (:<:) c cs = c :<: cs deriving Show
 
 infixr 5 :<:
 
+data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
+
+getHole :: Loc h r c -> h
+getHole = val
+
+setHole :: h -> Loc h r c -> Loc h r c
+setHole v (Loc _ cs) = Loc v cs
+
 leave :: (Zipper h) => Loc h r c -> r
 leave (Loc h Empty) = h
 leave (Loc h (Next c cs)) = leave (Loc (to (fromJust  (fill' c h))) cs)
 
-data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
-
 enter :: Zipper h => h -> Loc h h Epsilon
 enter h = Loc h Empty
+
 
 up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Maybe (Loc h' r c)
 up (Loc h (Next c cs))   = (\x -> Loc (to x) cs) <$> fill' c h
 
+
 down :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
-down (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
+down = downL
 
 down' :: (Zipper h, Zipper h') => h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
-down' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
+down' = downL'
+
+
+downL :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
+downL (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
+
+downL' :: (Zipper h, Zipper h') => h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
+downL' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
+
+
+downR :: (Zipper h, Zipper h') => Loc h r c -> Maybe (Loc h' r (h :<: c))
+downR (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> last' (from h)
+
+downR' :: (Zipper h, Zipper h') => h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
+downR' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> last' (from h)
+
 
 right :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
 right (Loc _ Empty) = Nothing
@@ -84,13 +98,26 @@ right' :: (Zipper h, Zipper h') => h' -> Loc h r cs -> Maybe (Loc h' r cs)
 right' _ (Loc _ Empty) = Nothing
 right' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
 
+
+
+left :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
+left (Loc _ Empty) = Nothing
+left (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> prev' c h
+
+left' :: (Zipper h, Zipper h') => h' -> Loc h r cs -> Maybe (Loc h' r cs)
+left' _ (Loc _ Empty) = Nothing
+left' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> prev' c h
+
+
 -- | Zipper
 
 class ( Representable  f
       , Typeable       f
       , Fillable  (Rep f)
       , Firstable (Rep f)
-      , Nextable  (Rep f) ) => Zipper f
+      , Nextable  (Rep f)
+      , Lastable  (Rep f)
+      , Prevable  (Rep f)) => Zipper f
 
 instance Zipper Int
 instance Zipper Char
@@ -192,6 +219,40 @@ instance (Typeable f) => Firstable (Var f) where
 
 instance (Firstable f) => Firstable (C c f) where
     first' (C v) = mapSnd CC <$> first' v
+
+-- | Last
+
+class Lastable f where
+    last' :: (Zipper a) => f -> Maybe (a, Ctx f)
+
+instance Lastable U where
+    last' _ = Nothing
+
+instance Lastable Char where
+    last' _ = Nothing -- impossible?
+
+instance Lastable Int where
+    last' _ = Nothing -- impossible?
+    
+instance Lastable Float where
+    last' _ = Nothing -- impossible?
+            
+instance (Lastable f, Lastable g) => Lastable (f :+: g) where
+    last' (L x) = mapSnd CL <$> last' x
+    last' (R y) = mapSnd CR <$> last' y
+
+instance (Lastable f, Lastable g) => Lastable (f :*: g) where
+    last' (l :*: r) = mapSnd (C2 l) <$> last' r
+                  <|> mapSnd (flip C1 r) <$> last' l
+
+instance (Typeable f) => Lastable (Rec f) where
+    last' (Rec v) = (\x -> (x, Recursive)) <$> cast v
+
+instance (Typeable f) => Lastable (Var f) where
+    last' (Var v) = (\x -> (x, Variable)) <$> cast v
+
+instance (Lastable f) => Lastable (C c f) where
+    last' (C v) = mapSnd CC <$> last' v
     
 -- | Next
 
@@ -227,5 +288,40 @@ instance Nextable (Var f) where
 
 instance (Nextable f) => Nextable (C c f) where
     next' (CC v) x = mapSnd CC <$> next' v x
+
+-- | Prev
+
+class Prevable f where
+    prev' :: (Typeable a, Zipper b) => Ctx f -> a -> Maybe (b, Ctx f)
+    
+instance Prevable U where
+    prev' _ _ = Nothing
+
+instance Prevable Char where
+    prev' _ _ = Nothing
+
+instance Prevable Int where
+    prev' _ _ = Nothing
+
+instance Prevable Float where
+    prev' _ _ = Nothing
+
+instance (Prevable f, Prevable g) => Prevable (f :+: g) where
+    prev' (CL c) x = mapSnd CL <$> prev' c x
+    prev' (CR c) y = mapSnd CR <$> prev' c y
+
+instance (Lastable f, Fillable g, Prevable f, Prevable g) => Prevable (f :*: g) where
+    prev' (C1 c y) x = mapSnd (flip C1 y) <$> prev' c x                    
+    prev' (C2 x c) y = mapSnd (C2 x) <$> prev' c y 
+                   <|> (\x' (y',c') -> (y', C1 c' x')) <$> fill' c y <*> last' x
+
+instance Prevable (Rec f) where
+    prev' (Recursive) _ = Nothing
+
+instance Prevable (Var f) where
+    prev' (Variable) _ = Nothing
+
+instance (Prevable f) => Prevable (C c f) where
+    prev' (CC v) x = mapSnd CC <$> prev' v x
 
 -- | Type-level functions
