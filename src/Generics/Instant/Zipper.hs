@@ -1,17 +1,17 @@
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE EmptyDataDecls      #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE Rank2Types          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving  #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE EmptyDataDecls        #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 
 {-# OPTIONS_GHC -Wall            #-}
@@ -122,6 +122,7 @@ class ( Representable  f
 instance Zipper Int
 instance Zipper Char
 instance Zipper Float
+instance (Zipper a) => Zipper [a]
 
 -- | Zippable
 

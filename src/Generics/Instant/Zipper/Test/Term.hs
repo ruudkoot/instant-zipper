@@ -1,7 +1,9 @@
+{-# LANGUAGE EmptyDataDecls            #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
 module Generics.Instant.Zipper.Test.Term where
@@ -24,6 +26,7 @@ data Term
 
 -- | Representation
 
+{-
 instance Representable Term where
     type Rep Term = (Var String)
                 :+: (Var String :*: Rec Term)
@@ -39,6 +42,9 @@ instance Representable Term where
     to (R (L (Var s :*: Rec t))                 ) = Lambda s t
     to (R (R (L (Rec t1 :*: Rec t2)))           ) = App t1 t2
     to (R (R (R (Rec t1 :*: Rec t2 :*: Rec t3)))) = If t1 t2 t3
+-}
+
+$(deriveAll ''Term)
 
 -- | Zipper
 
