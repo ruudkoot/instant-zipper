@@ -77,11 +77,11 @@ down' :: (Zipper h, Zipper h') => h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
 down' _ (Loc h cs) = (\(h', c) -> Loc h' (Next c cs)) <$> first' (from h)
 
 right :: (Zipper h, Zipper h') => Loc h r cs -> Maybe (Loc h' r cs)
-right (Loc h Empty) = Nothing
+right (Loc _ Empty) = Nothing
 right (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
 
 right' :: (Zipper h, Zipper h') => h' -> Loc h r cs -> Maybe (Loc h' r cs)
-right' _ (Loc h Empty) = Nothing
+right' _ (Loc _ Empty) = Nothing
 right' _ (Loc h (Next c cs)) = (\(h', c') -> Loc h' (Next c' cs)) <$> next' c h
 
 -- | Zipper
@@ -228,3 +228,4 @@ instance Nextable (Var f) where
 instance (Nextable f) => Nextable (C c f) where
     next' (CC v) x = mapSnd CC <$> next' v x
 
+-- | Type-level functions
