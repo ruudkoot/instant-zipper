@@ -1,9 +1,10 @@
-{-# LANGUAGE EmptyDataDecls            #-}
-{-# LANGUAGE TypeFamilies              #-}
-{-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE EmptyDataDecls            #-}
+{-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
 module Generics.Instant.Zipper.Test.Dept where
@@ -48,20 +49,29 @@ dept = D doaitse [johan, sean, pedro]
           sean     = E "Sean"     2600
           pedro    = E "Pedro"    2400
 
+data Fam a where
+    Employee     ::          Fam Employee
+    Float        ::          Fam Float
+    String       ::          Fam String
+    List         :: Fam a -> Fam [a]
+    deriving Show
+    
+instance Family Fam
+
 fixDept :: Maybe Dept
 fixDept =  return (enter dept)
-        >>= down' intoEmployee
-        >>= down' intoString
+        >>= down' Employee
+        >>= down' String
         >>= return . setHole "Prof. dr. Swierstra"
-        >>= right' intoFloat
+        >>= right' Float
         >>= return . setHole 9000.0
         >>= up
         >>= up
-        >>= downR' (intoList intoEmployee)
-        >>= down' (intoList intoEmployee)
-        >>= down' (intoList intoEmployee)
-        >>= down' (intoEmployee)
-        >>= downR' (intoFloat)
+        >>= downR' (List Employee)
+        >>= down' (List Employee)
+        >>= down' (List Employee)
+        >>= down' Employee
+        >>= downR' Float
         >>= return . setHole 100.0
         >>= return . leave
 
