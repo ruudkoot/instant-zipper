@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
-module Generics.Instant.Zipper.Test.Dept where
+module Generics.Instant.Zipper.Example.Dept where
 
 import Generics.Instant
 import Generics.Instant.TH

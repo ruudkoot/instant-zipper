@@ -7,7 +7,7 @@
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
-module Generics.Instant.Zipper.Test.Term where
+module Generics.Instant.Zipper.Example.Term where
 
 import Data.Maybe
 import Data.Typeable
