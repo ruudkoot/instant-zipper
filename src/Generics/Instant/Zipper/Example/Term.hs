@@ -81,6 +81,6 @@ fixFac =  return (enter fac)
       >>= down  Term
       >>= down  Term
       >>= down  String
-      >>= return . setHole "*"
+      >>= return . set "*"
       >>= return . leave
 

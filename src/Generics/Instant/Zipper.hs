@@ -2,6 +2,7 @@
 {-# LANGUAGE EmptyDataDecls     #-}
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE TupleSections      #-}
 {-# LANGUAGE TypeFamilies       #-}
 {-# LANGUAGE TypeOperators      #-}
 
@@ -24,8 +25,8 @@ module Generics.Instant.Zipper (
     downR,
     left,
     right,
-    getHole,
-    setHole
+    get,
+    set
 ) where
 
 import Prelude hiding (last)
@@ -155,21 +156,21 @@ instance Firstable Float where
     first _ = Nothing
             
 instance (Firstable f, Firstable g) => Firstable (f :+: g) where
-    first (L x) = fmap CL <$> first x
-    first (R y) = fmap CR <$> first y
+    first (L x)     = fmap CL <$> first x
+    first (R y)     = fmap CR <$> first y
 
 instance (Firstable f, Firstable g) => Firstable (f :*: g) where
-    first (l :*: r) = fmap (flip C1 r) <$> first l
-                   <|> fmap (C2 l) <$> first r
+    first (l :*: r) =  fmap (flip C1 r) <$> first l
+                   <|> fmap (     C2 l) <$> first r
 
 instance (Typeable f) => Firstable (Rec f) where
-    first (Rec v) = (\x -> (x, CRec)) <$> cast v
+    first (Rec v) = (, CRec) <$> cast v
 
 instance (Typeable f) => Firstable (Var f) where
-    first (Var v) = (\x -> (x, CVar)) <$> cast v
+    first (Var v) = (, CVar) <$> cast v
 
 instance (Firstable f) => Firstable (C c f) where
-    first (C v) = fmap CC <$> first v
+    first (C v)   = fmap CC <$> first v
 
 -- | Last
 
@@ -193,14 +194,14 @@ instance (Lastable f, Lastable g) => Lastable (f :+: g) where
     last (R y) = fmap CR <$> last y
 
 instance (Lastable f, Lastable g) => Lastable (f :*: g) where
-    last (l :*: r) = fmap (C2 l) <$> last r
+    last (l :*: r) =  fmap (     C2 l) <$> last r
                   <|> fmap (flip C1 r) <$> last l
 
 instance (Typeable f) => Lastable (Rec f) where
-    last (Rec v) = (\x -> (x, CRec)) <$> cast v
+    last (Rec v) = (, CRec) <$> cast v
 
 instance (Typeable f) => Lastable (Var f) where
-    last (Var v) = (\x -> (x, CVar)) <$> cast v
+    last (Var v) = (, CVar) <$> cast v
 
 instance (Lastable f) => Lastable (C c f) where
     last (C v) = fmap CC <$> last v
@@ -228,14 +229,14 @@ instance (Nextable f, Nextable g) => Nextable (f :+: g) where
 
 instance (Nextable f, Nextable g, Fillable f, Firstable g) => Nextable (f :*: g) where
     next (C1 c y) x = fmap (flip C1 y) <$> next c x
-                    <|> (\x' (y',c') -> (y', C2 x' c')) <$> fill c x <*> first y
+                   <|> (\x' (y',c') -> (y', C2 x' c')) <$> fill c x <*> first y
     next (C2 x c) y = fmap (C2 x) <$> next c y 
 
 instance Nextable (Rec f) where
-    next (CRec) _ = Nothing
+    next CRec _ = Nothing
 
 instance Nextable (Var f) where
-    next (CVar) _ = Nothing
+    next CVar _ = Nothing
 
 instance (Nextable f) => Nextable (C c f) where
     next (CC v) x = fmap CC <$> next v x
@@ -263,25 +264,25 @@ instance (Prevable f, Prevable g) => Prevable (f :+: g) where
 
 instance (Lastable f, Fillable g, Prevable f, Prevable g) => Prevable (f :*: g) where
     prev (C1 c y) x = fmap (flip C1 y) <$> prev c x                    
-    prev (C2 x c) y = fmap (C2 x) <$> prev c y 
+    prev (C2 x c) y = fmap (     C2 x) <$> prev c y 
                    <|> (\x' (y',c') -> (y', C1 c' x')) <$> fill c y <*> last x
 
 instance Prevable (Rec f) where
-    prev (CRec) _ = Nothing
+    prev CRec _ = Nothing
 
 instance Prevable (Var f) where
-    prev (CVar) _ = Nothing
+    prev CVar _ = Nothing
 
 instance (Prevable f) => Prevable (C c f) where
     prev (CC v) x = fmap CC <$> prev v x
 
 -- | Navigation
 
-getHole :: Loc h r c -> h
-getHole = focus
+get :: Loc h r c -> h
+get = focus
 
-setHole :: h -> Loc h r c -> Loc h r c
-setHole v (Loc _ cs) = Loc v cs
+set :: h -> Loc h r c -> Loc h r c
+set v (Loc _ cs) = Loc v cs
 
 leave :: (Zipper h) => Loc h r c -> r
 leave (Loc h Empty) = h

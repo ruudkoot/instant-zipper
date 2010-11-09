@@ -61,9 +61,9 @@ fixDept :: ZipperR Dept
 fixDept =  return (enter dept)
         >>= down  Employee
         >>= down  Name
-        >>= return . setHole "Prof. dr. Swierstra"
+        >>= return . set "Prof. dr. Swierstra"
         >>= right Salary
-        >>= return . setHole 9000.0
+        >>= return . set 9000.0
         >>= return . up
         >>= return . up
         >>= downR (List Employee)
@@ -71,6 +71,6 @@ fixDept =  return (enter dept)
         >>= down  (List Employee)
         >>= down  Employee
         >>= downR Salary
-        >>= return . setHole 100.0
+        >>= return . set 100.0
         >>= return . leave
 
