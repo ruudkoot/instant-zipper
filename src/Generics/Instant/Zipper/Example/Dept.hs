@@ -51,8 +51,8 @@ instance Family Fam
 
 -- | Zipper
 
-instance Zipper Dept
-instance Zipper Employee
+instance Zippable Dept
+instance Zippable Employee
     
 -- | Example
 
@@ -72,7 +72,7 @@ fixDept =  return (enter dept)
         >>= right Salary
         >>= return . setHole 9000.0
         >>= return . up
- --       >>= return . up
+        >>= return . up
         >>= downR (List Employee)
         >>= down  (List Employee)
         >>= down  (List Employee)

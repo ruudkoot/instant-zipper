@@ -17,13 +17,10 @@
 
 module Generics.Instant.Zipper where
 
+import Control.Applicative
+
 import Data.Maybe
 import Data.Typeable
-
---import Debug.Trace
-
-import Control.Applicative
---import Control.Monad
 
 import Generics.Instant
 
@@ -42,14 +39,14 @@ mapSnd f (a,b) = (a, f b)
 
 class Family (f :: * -> *) where
 
-data HCtx hole root l where
-    Empty :: HCtx hole hole Epsilon
-    Next  :: (Zipper parent) => Ctx (Rep parent) -> HCtx parent root cs -> HCtx hole root (parent :<: cs)
-
 data Epsilon = Epsilon deriving Show
 data (:<:) c cs = c :<: cs deriving Show
 
 infixr 5 :<:
+
+data HCtx hole root l where
+    Empty :: HCtx hole hole Epsilon
+    Next  :: (Zipper parent) => Ctx (Rep parent) -> HCtx parent root cs -> HCtx hole root (parent :<: cs)
 
 data Loc h r c = Loc { val :: h, ctxs :: HCtx h r c }
 
@@ -144,30 +141,30 @@ instance Zipper Char
 instance Zipper Float
 instance (Zipper a) => Zipper [a]
 
--- | Zippable
+-- | Derivable
 
-class Zippable f where
+class Derivable f where
     data Ctx f :: * 
     
-instance Zippable Int where
+instance Derivable Int where
     data Ctx Int
     
-instance Zippable U where
+instance Derivable U where
     data Ctx U
     
-instance (Zippable f, Zippable g) => Zippable (f :+: g) where
+instance (Derivable f, Derivable g) => Derivable (f :+: g) where
     data Ctx (f :+: g) = CL (Ctx f) | CR (Ctx g)
     
-instance (Zippable f, Zippable g) => Zippable (f :*: g) where
+instance (Derivable f, Derivable g) => Derivable (f :*: g) where
     data Ctx (f :*: g) = C1 (Ctx f) g | C2 f (Ctx g)
     
-instance (Zippable a) => Zippable (Rec a) where
+instance (Derivable a) => Derivable (Rec a) where
     data Ctx (Rec a) = Recursive
     
-instance (Zippable a) => Zippable (Var a) where
+instance (Derivable a) => Derivable (Var a) where
     data Ctx (Var a) = Variable
     
-instance (Zippable f) => Zippable (C c f) where
+instance (Derivable f) => Derivable (C c f) where
     data Ctx (C c f) = CC (Ctx f)
 
 -- | Fill
