@@ -1,7 +1,7 @@
 \documentclass[a4paper,twocolumn]{article}
 
 %include polycode.fmt
-
+%format ... = "\ ... \ "
 
 \begin{document}
 
@@ -11,8 +11,80 @@
 \maketitle
 
 \section{Introduction}
+In this paper we present an implementation of a generic zipper type implemented in Instant Generics.
+
 
 \section{Using the Instant Zipper}
+
+Before moving on the implementation details of our zipper we present an example of how it can be used to edit a heterogeneous datatype. We present a similar example as given by Adams for his Scrap Your Zippers, to make it clear what the differences of our approach are.
+
+We start with a number of datatypes represeting a university departement and its employees:
+
+> type Salary    = Float
+> type Manager   = Employee
+> type Name      = String
+> 
+> data Dept = D Manager [Employee]
+>     deriving (Eq, Show, Typeable)
+>
+> data Employee = E Name Salary
+>     deriving (Eq, Show, Typeable)
+
+To define a zipper over these datatype we will need to:
+
+\begin{enumerate}
+    \item Make the datatypes an instance of Typeable.
+    \item Derive the Instant Generics representation using Template Haskell:
+> $(deriveAll ''Dept)
+> $(deriveAll ''Employee)
+    \item Declare a Family for all the types we want to navigate into:
+> data Fam a where
+>     Dept      :: Fam Dept
+>     Employee  :: Fam Employee
+>     Salary    :: Fam Salary
+>     Name      :: Fam Name
+>     List      :: (Show a) => Fam a -> Fam [a]
+>
+> deriving instance Show (Fam a)
+>    
+> instance Family Fam
+    \item Finally, we instantiate the the datatypes as Zippers:
+> instance Zipper Dept
+> instance Zipper Employee
+\end{enumerate}
+
+While we could easily have designed our zipper in such a way as to not require the Family instance, this approach will make our navigations more elegant in appearance. Furthermore, we believe most of this can be automatically derived using Template Haskell.
+
+We can now give a concrete value for the Dept type:
+
+> dept :: Dept
+> dept = D doaitse [johan, sean, pedro]
+>     where doaitse, johan, sean, pedro :: Employee
+>           doaitse  = E "Doaitse"  8000
+>           johan    = E "Johan"    8000
+>           sean     = E "Sean"     2600
+>           pedro    = E "Pedro"    2400
+          
+and edit it using the zipper:
+
+> fixDept :: Maybe Dept
+> fixDept  =    return (enter dept)
+>          >>=  down   Employee
+>          >>=  down   Name
+>          >>=  return . setHole "Prof. dr. Swierstra"
+>          >>=  right  Salary
+>          >>=  return . setHole 9000.0
+>          >>=  return . up
+>          >>=  return . up
+>          >>=  downR (List Employee)
+>          >>=  down  (List Employee)
+>          >>=  down  (List Employee)
+>          >>=  down   Employee
+>          >>=  downR  Salary
+>          >>=  return . setHole 100.0
+>          >>=  return . leave
+
+The diffence with SYZ is clean: we need to annotate our navigation function with types. Giving a wrong type can cause a failure (Nothing) at runtime, but can also be important when moving down along the spine of list, or, down into a value in a list. The getHole and setHole operations can now be statically typed however.
 
 \section{Implementing the Instant Zipper}
 
@@ -128,7 +200,6 @@ Having defined all operations on our we need to ``tie the recursive knot'':
 > instance Zipper Char
 > instance Zipper Float
 > instance (Zipper a) => Zipper [a]
-
 
 \section{Future reasearch}
 
