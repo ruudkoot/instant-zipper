@@ -6,12 +6,18 @@
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE StandaloneDeriving        #-}
 
 module Generics.Instant.Zipper.Example.Dept where
 
 import Generics.Instant
 import Generics.Instant.TH
 import Generics.Instant.Zipper
+
+import qualified Language.Haskell.TH as TH
+
+import Data.Typeable
+import Control.Monad.Error
 
 -- | Datatype
 
@@ -32,15 +38,16 @@ $(deriveAll ''Employee)
 
 -- | Family
 
-data Family a where
-    Dept     ::             Family Dept
-    Employee ::             Family Employee
-    Salary   ::             Family Salary
-    Name     ::             Family Name
-    List     :: Family a -> Family [a]
-    deriving Show
+data Fam a where
+    Dept     ::             Fam Dept
+    Employee ::             Fam Employee
+    Salary   ::             Fam Salary
+    Name     ::             Fam Name
+    List     :: (Show a) => Fam a    -> Fam [a]
     
-instance Family Family
+deriving instance Show (Fam a)
+    
+instance Family Fam
 
 -- | Zipper
 
@@ -57,15 +64,15 @@ dept = D doaitse [johan, sean, pedro]
           sean     = E "Sean"     2600
           pedro    = E "Pedro"    2400
 
-fixDept :: Maybe Dept
+fixDept :: Either String Dept
 fixDept =  return (enter dept)
         >>= down  Employee
         >>= down  Name
         >>= return . setHole "Prof. dr. Swierstra"
         >>= right Salary
         >>= return . setHole 9000.0
-        >>= up
-        >>= up
+        >>= return . up
+ --       >>= return . up
         >>= downR (List Employee)
         >>= down  (List Employee)
         >>= down  (List Employee)
