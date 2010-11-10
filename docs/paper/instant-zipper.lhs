@@ -84,7 +84,7 @@ and edit it using the zipper:
 >          >>=  return . setHole 100.0
 >          >>=  return . leave
 
-The diffence with SYZ is clean: we need to annotate our navigation function with types. Giving a wrong type can cause a failure (Nothing) at runtime, but can also be important when moving down along the spine of list, or, down into a value in a list. The getHole and setHole operations can now be statically typed however.
+The diffence with SYZ is clear: we need to annotate our navigation function with types. Giving a wrong type can cause a failure (Nothing) at runtime, but can also be important when moving down along the spine of list, or, down into a value in a list. The getHole and setHole operations can now be statically typed however.
 
 \section{Implementing the Instant Zipper}
 
@@ -151,11 +151,13 @@ of this type-class for each member of the representation type. An important func
 context and a value and puts the value into the hole in the context, resulting in a new value. 
 
 > class Fillable f where
->    fill' :: (Typeable a) => Derivative f -> a -> Maybe f
+>    fill' :: (Typeable a) => 
+>          Derivative f -> a -> Maybe f
     
 Important here is the Typeable class-constraint for the value we want to plug in. The Derivative can have a hole of any type (see explaination of Derivative), and thus we can not guarantee, using the type system, that the type of the element we want to plug in is indeed the type of the hole. To overcome this problem we require both the hole and the item we want to plug in to be Typeable so we can use cast. This is also why the fill' function returns a Maybe type, beacause casting may fail. Now the instance for Rec (the hole) looks as follows:
 
-> instance (Typeable a) => Fillable (Rec a) where
+> instance (Typeable a) => 
+>              Fillable (Rec a) where
 >    fill' Recursive v = Rec <$> cast v
 
 Note that we give a similar instance for Var. Rec and Var are treated equally in our zipper library.
@@ -164,7 +166,8 @@ Note that we give a similar instance for Var. Rec and Var are treated equally in
 Another important function for our zipper is the first function. The first function takes a value and splits this value into its leftmost value and the corresponding context. It effectively punches a hole in a value. A similar problem as with the fill' function arises here. We want to produce a hole with type a. Here again we use casting to achieve this. 
 
 > class Firstable f where
->    first' :: (Zipper a) => f -> Maybe (a, Derivative f)
+>    first' :: (Zipper a) => 
+>           f -> Maybe (a, Derivative f)
 
 Notice that when this first' function is invoked with a type for a that is not present in one of the holes of Derivative f, the function will produce Nothing. The function will create a hole and context for the types that are given, where the hole is the leftmost hole with the specified type. 
 
@@ -174,8 +177,10 @@ Notice that when this first' function is invoked with a type for a that is not p
 >          mapSnd (flip C1 r) <$> first' l
 >      <|> mapSnd (C2 l) <$> first' r
 >
-> instance (Typeable f) => Firstable (Rec f) where
->    first' (Rec v) = (\x -> (x, Recursive)) <$> cast v
+> instance (Typeable f) => 
+>            Firstable (Rec f) where
+>    first' (Rec v) = 
+>       (\x -> (x, Recursive)) <$> cast v
 
 The product instance tries to create a result to the left first, if it fails to the right. If both fail no context can be given.
 
@@ -185,7 +190,8 @@ As we have seen, the behaviour of first' and fill' is determined by the type wit
 
 We would like to implement the up function (the function that goes one hole up in the context) in the following way:
 
-> up (Loc h (Push c cs)) = (\x -> Loc (to x) cs) <$> fill' c h
+> up (Loc h (Push c cs)) = 
+>       (\x -> Loc (to x) cs) <$> fill' c h
 
 We fill the top hole with the current value, yielding a new value and the rest of the context. We cannot use casting here to get the types right, we need explicit typing on all variables because the fill' function already contains a cast, and thus needs fully explicit types. If we try to use another cast to get the types right, we get an ambiguous type occurence (similar to the read . show problem). Of course a solution here is to require explicit type annotations on every use of the up function, but we can be smarter. Using a trick similar to \cite{HList-HW04}, extended with GADTs to guide the pattern matching, we can keep all the types of the previous contexts in our Context GADT. We build a list at the type-level, which contains the type of each context we have visited, this way, when we go up, we can retrieve the type in this type-level list instead of asking the user for extra information. The result looks as follows:
 
@@ -194,12 +200,15 @@ We fill the top hole with the current value, yielding a new value and the rest o
 > data (:<:) c cs = c :<: cs
 > data Context ... l where
 >    Empty :: Context ... Epsilon
->    Push  :: (Zipper parent) => Derivative (Rep parent)
->                             -> Context ... cs
->                             -> Context ... (parent :<: cs)
+>    Push  :: (Zipper parent) 
+>               => Derivative (Rep parent)
+>               -> Context ... cs
+>               -> Context ... (parent :<: cs)
 >
-> up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Loc h' r c
-> up (Loc h (Push c cs)) = fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
+> up :: (Zipper h, Zipper h') => 
+>           Loc h r (h' :<: c) -> Loc h' r c
+> up (Loc h (Push c cs)) = 
+>     fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
 
 Note that the additional type information also prevents us form going up in an empty context. We can also add fromJust because we can be sure the result will be correct.
 
@@ -225,6 +234,34 @@ To be able to give this function a result type, we need to know the type of the 
 > leave :: (Zipper h) => Loc h r c -> r
 > leave (Loc h Empty) = h
 > leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
+
+
+The last important function that we need to implement is the down function, which goes down into the current hole, adding a context to the context stack and creates a new hole. 
+We use the first' function to do this. In the previous up/leave functions we could avoid the need for type-annotations by chosing our datastructures cleverly and maintaining type information. With
+the down function there is no way for us to infer what type we want our new hole to have, so we need type-annotations from the user. The normal down function looks as follows:
+
+> down :: (Zipper h, Zipper h') => 
+>           Loc h r c -> Maybe (Loc h' r (h :<: c))
+> down (Loc h cs) = 
+>   (\(h', c) -> Loc h' (Push c cs)) <$> first (from h)
+
+Specifically, the type of h' is the type which we cannot infer. This system is unworkable if we have to annotate each call to down with its full type signature. Thus we introduce a more
+convenient way for specifying the type of h', a phantom variable! This is a variable which is not used but only there for the extra type information, the function now looks like this:
+
+> down' :: (Zipper h, Zipper h') => 
+>   h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
+> down' _ (Loc h cs) = 
+>   (\(h', c) -> Loc h' (Push c cs)) <$> first (from h)
+
+Filling in the argument with a static type is now sufficient, this function could be used in such a way:
+
+> downInt = down (undefined :: Int)
+
+Thus there are 2 ways to call the down function, with or without phantom argument type.
+
+
+The functions right and left, which move the hole right or left into a new hole of a new (specified) type, are implemented in the same manner as the down function. For these two functions we also need
+extra type annotations.
 
 \subsection{Context}
 
