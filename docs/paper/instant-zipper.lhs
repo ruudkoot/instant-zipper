@@ -145,23 +145,27 @@ Calculating the derivative in the sum-of-products view used by Instant Generics 
 >     data Derivative (Var a) = Variable
 
 \subsection{Navigation}
+In this section the most important functions of our zipper are presented along with the impact they have on the design and usability. First we will introduce 2 auxiliary functions fill'
+and first', with which are then used to build the navigation functions up, down and leave for our zipper.
 
+\subsubsection{Fill}
 In Instant Generics we create functions on representation types by creating a type class wrapping the function and creating an instance
-of this type-class for each member of the representation type. An important function for zipper is the fill function, which retrieves a 
+of this type-class for each member of the representation type. An important function for zippers is the fill function, which receives a 
 context and a value and puts the value into the hole in the context, resulting in a new value. 
 
 > class Fillable f where
 >    fill' :: (Typeable a) => 
 >          Derivative f -> a -> Maybe f
     
-Important here is the Typeable class-constraint for the value we want to plug in. The Derivative can have a hole of any type (see explaination of Derivative), and thus we can not guarantee, using the type system, that the type of the element we want to plug in is indeed the type of the hole. To overcome this problem we require both the hole and the item we want to plug in to be Typeable so we can use cast. This is also why the fill' function returns a Maybe type, beacause casting may fail. Now the instance for Rec (the hole) looks as follows:
+Important here is the Typeable class-constraint for the value we want to plug in. The Derivative can have a hole of any type (see explaination of Derivative), and thus we can not guarantee, using the type system, that the type of the element we want to plug in is indeed the type of the hole. To overcome this problem we require both the hole and the item we want to plug in to be Typeable so we can use cast. This is also why the fill' function returns a Maybe type, because casting may fail. Now the Fillable instance for Rec, which represents the position of the hole in the context, looks as follows:
 
 > instance (Typeable a) => 
 >              Fillable (Rec a) where
->    fill' Recursive v = Rec <$> cast v
+>    fill' CRec v = Rec <$> cast v
 
 Note that we give a similar instance for Var. Rec and Var are treated equally in our zipper library.
 
+\subsubsection{First}
 
 Another important function for our zipper is the first function. The first function takes a value and splits this value into its leftmost value and the corresponding context. It effectively punches a hole in a value. A similar problem as with the fill' function arises here. We want to produce a hole with type a. Here again we use casting to achieve this. 
 
@@ -187,6 +191,7 @@ The product instance tries to create a result to the left first, if it fails to 
 
 As we have seen, the behaviour of first' and fill' is determined by the type with which they are invoked. This because the way casting works. We are now going to use these functions which operate on values and contexts and use them to create functions which work on the Loc datatype. We will see that the extra type-information needed to use the first' and fill' functions drives the way in which we define our up and down functions and ultimately our Loc and Context datatypes.
 
+\subsubsection{Up}
 
 We would like to implement the up function (the function that goes one hole up in the context) in the following way:
 
@@ -212,7 +217,7 @@ We fill the top hole with the current value, yielding a new value and the rest o
 
 Note that the additional type information also prevents us form going up in an empty context. We can also add fromJust because we can be sure the result will be correct.
 
-
+\subsubsection{Leave}
 We still left some information open in our Context datatype, this has to do with the leave function. The leave function repeatedly applies the up function until we are left with our original datatype.
 
 > leave (Loc h Empty) = h
@@ -235,7 +240,7 @@ To be able to give this function a result type, we need to know the type of the 
 > leave (Loc h Empty) = h
 > leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
 
-
+\subsubsection{Down}
 The last important function that we need to implement is the down function, which goes down into the current hole, adding a context to the context stack and creates a new hole. 
 We use the first' function to do this. In the previous up/leave functions we could avoid the need for type-annotations by chosing our datastructures cleverly and maintaining type information. With
 the down function there is no way for us to infer what type we want our new hole to have, so we need type-annotations from the user. The normal down function looks as follows:
@@ -250,8 +255,7 @@ convenient way for specifying the type of h', a phantom variable! This is a vari
 
 > down' :: (Zipper h, Zipper h') => 
 >   h' -> Loc h r c -> Maybe (Loc h' r (h :<: c))
-> down' _ (Loc h cs) = 
->   (\(h', c) -> Loc h' (Push c cs)) <$> first (from h)
+> down' _ (Loc h cs) = down
 
 Filling in the argument with a static type is now sufficient, this function could be used in such a way:
 
@@ -259,9 +263,28 @@ Filling in the argument with a static type is now sufficient, this function coul
 
 Thus there are 2 ways to call the down function, with or without phantom argument type.
 
+\subsubsection{Other functions}
 
 The functions right and left, which move the hole right or left into a new hole of a new (specified) type, are implemented in the same manner as the down function. For these two functions we also need
 extra type annotations.
+
+\subsection{Error messages}
+Because we have no compile-time safety for the correctness of traversals within a value, traversals written in our zipper become hard to debug. When, for example, the user tries to go down into a type which isn't there, the zipper will just return a Nothing. To help the user in debugging traversals, we replaced the Maybe constructs in our navigation functions with the error monad. We also extended the functions so they report the operation at which something goes wrong. An example extension of the downL function looks as follows:
+
+> downL_ :: (Zipper h, Zipper h') => 
+>     Loc h r c -> ZipperR (Loc h' r (h :<: c))
+> downL_ (Loc h cs) = 
+>    maybe (Left "Error going down left") 
+>          (\(h', c) -> Right (Loc h' (Push c cs))) 
+>            $ first (from h)
+
+The implementaiton is similar for the other navigation functions.
+
+\subsection{Tidying up with GADTs}
+Although the introduction of phantom variables greately reduces the burden of writing type information, the code still gets cluttered with a lot undefineds
+and ad-hoc type annotations. What we would like is a general solution to the problem of having to specify a type without a value.
+
+... Stukje Ruud
 
 \subsection{Context}
 
