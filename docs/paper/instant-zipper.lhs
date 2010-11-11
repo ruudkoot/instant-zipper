@@ -105,8 +105,6 @@ The context is a stack of \emph{one-hole contexts}:
 >       ->  Context   ...
 >       ->  Context   ...
 
-If the context stack is empty the whole datastructure will be in focus, as if we just entered it, and the its type will be that of both the hole and the root.
-
 As we move down into the datastructure we peel of the constructors (minus one hole) for the structure in focus and push it onto the context stack. The type of a datatype with one hole per constructor is given by the \emph{derivative} of that datatype \cite{mcbride03}.
 
 \subsection{Derivatives}
@@ -154,36 +152,36 @@ of this type-class for each member of the representation type. An important func
 context and a value and puts the value into the hole in the context, resulting in a new value. 
 
 > class Fillable f where
->    fill' :: (Typeable a) => 
+>    fill :: (Typeable a) => 
 >          Derivative f -> a -> Maybe f
     
-Important here is the Typeable class-constraint for the value we want to plug in. The Derivative can have a hole of any type (see explaination of Derivative), and thus we can not guarantee, using the type system, that the type of the element we want to plug in is indeed the type of the hole. To overcome this problem we require both the hole and the item we want to plug in to be Typeable so we can use cast. This is also why the fill' function returns a Maybe type, because casting may fail. Now the Fillable instance for Rec, which represents the position of the hole in the context, looks as follows:
+Important here is the Typeable class-constraint for the value we want to plug in. The Derivative can have a hole of any type (see explaination of Derivative), and thus we can not guarantee, using the type system, that the type of the element we want to plug in is indeed the type of the hole. To overcome this problem we require both the hole and the item we want to plug in to be Typeable so we can use cast. This is also why the fill function returns a Maybe type, because casting may fail. Now the Fillable instance for Rec, which represents the position of the hole in the context, looks as follows:
 
 > instance (Typeable a) => 
 >              Fillable (Rec a) where
->    fill' CRec v = Rec <$> cast v
+>    fill CRec v = Rec <$> cast v
 
 Note that we give a similar instance for Var. Rec and Var are treated equally in our zipper library.
 
 \subsubsection{First}
 
-Another important function for our zipper is the first function. The first function takes a value and splits this value into its leftmost value and the corresponding context. It effectively punches a hole in a value. A similar problem as with the fill' function arises here. We want to produce a hole with type a. Here again we use casting to achieve this. 
+Another important function for our zipper is the first function. The first function takes a value and splits this value into its leftmost value and the corresponding context. It effectively punches a hole in a value. A similar problem as with the fill function arises here. We want to produce a hole with type a. Here again we use casting to achieve this. 
 
 > class Firstable f where
->    first' :: (Zipper a) => 
+>    first :: (Zipper a) => 
 >           f -> Maybe (a, Derivative f)
 
 Notice that when this first' function is invoked with a type for a that is not present in one of the holes of Derivative f, the function will produce Nothing. The function will create a hole and context for the types that are given, where the hole is the leftmost hole with the specified type. 
 
 > instance (Firstable f, Firstable g) => 
 >               Firstable (f :*: g) where
->    first' (l :*: r) = 
->          mapSnd (flip C1 r) <$> first' l
->      <|> mapSnd (C2 l) <$> first' r
+>    first (l :*: r) = 
+>          mapSnd (flip C1 r) <$> first l
+>      <|> mapSnd (C2 l) <$> first r
 >
 > instance (Typeable f) => 
 >            Firstable (Rec f) where
->    first' (Rec v) = 
+>    first (Rec v) = 
 >       (\x -> (x, Recursive)) <$> cast v
 
 The product instance tries to create a result to the left first, if it fails to the right. If both fail no context can be given.
