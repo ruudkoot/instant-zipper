@@ -223,9 +223,24 @@ Note that we throw away the type information at the recursive position!
     \end{itemize}
 \end{frame}
 
-\begin{frame}
+\begin{frame}{GADTs}
 \end{frame}
 
+\begin{frame}
+    \begin{itemize}
+        \item Some of the operations on our zipper may fail
+        \item For example, when tying to go down into a type which isn't there
+        \item Instead of returning Nothing, we return an error message with information on what operation went wrong
+        \item If the user uses the GADT typing system, additional typing information is given
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Future work}
+    \begin{itemize}
+        \item Write TH code to generate Family instances
+        \item Employ type families to catch errors at compile time
+    \end{itemize}
+\end{frame}
 
 \end{document}
 
