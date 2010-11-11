@@ -1,0 +1,4 @@
+#!/bin/bash
+lhs2TeX instant-zipper.lhs -o instant-zipper.tex
+pdflatex instant-zipper.tex
+

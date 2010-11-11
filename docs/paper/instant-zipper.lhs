@@ -67,7 +67,7 @@ We can now give a concrete value for the Dept type:
           
 and edit it using the zipper:
 
-> fixDept :: Maybe Dept
+> fixDept :: Either String Dept
 > fixDept  =    return (enter dept)
 >          >>=  down   Employee
 >          >>=  down   Name

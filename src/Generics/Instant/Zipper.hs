@@ -13,6 +13,7 @@ module Generics.Instant.Zipper (
     module Data.Typeable,
     module Generics.Instant,
     module Generics.Instant.TH,
+    module Generics.Instant.Zipper.TH,
     -- *
     Family,
     Zipper,
@@ -39,6 +40,8 @@ import Data.Typeable
 
 import Generics.Instant
 import Generics.Instant.TH
+
+import Generics.Instant.Zipper.TH
 
 -- | Type-level list
 
