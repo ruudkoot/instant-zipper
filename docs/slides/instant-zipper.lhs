@@ -36,11 +36,7 @@
 
 \maketitle
 
-\begin{frame}{TOC}
-    \tableofcontents
-\end{frame}
-
-\begin{frame}
+\begin{frame}{Research question}
     \begin{itemize}      
         \item Zipper for heterogenous types
         \item i.e. The Zipper can traverse into structures of any type
@@ -88,16 +84,6 @@ We can fix it using our zipper as follows:
 \end{frame}
 
 \section{Implementation}
-
-\begin{frame}{Under the hood}
-    \begin{itemize}
-        \item Basic ingredients of a Zipper:
-        \item We define our Zipper onto the generic representation of Instant Generics
-        
-        \item Basic operations to create/manipulate contexts
-        \item Navigation functions
-    \end{itemize}    
-\end{frame}
 
 \begin{frame}{Zipper}
     \begin{itemize}
@@ -270,7 +256,7 @@ we use a nicer approach:
 > down = downL
 \end{frame}
 
-\begin{frame}
+\begin{frame}{Conclusion}
     \begin{itemize}
         \item Some of the operations on our zipper may fail
         \item For example, when tying to go down into a type which isn't there
