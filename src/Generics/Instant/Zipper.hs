@@ -2,6 +2,7 @@
 {-# LANGUAGE EmptyDataDecls     #-}
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE GADTs              #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections      #-}
 {-# LANGUAGE TypeFamilies       #-}
 {-# LANGUAGE TypeOperators      #-}
@@ -27,7 +28,9 @@ module Generics.Instant.Zipper (
     left,
     right,
     get,
-    set
+    set,
+    -- *
+    PrimFam(..)
 ) where
 
 import Prelude hiding (last)
@@ -65,6 +68,16 @@ type ZipperR = Either String
 -- | Families
 
 class Family (f :: * -> *)
+
+data PrimFam a where
+    Char  ::                                  PrimFam Char
+    Int   ::                                  PrimFam Int
+    Float ::                                  PrimFam Float
+    List  :: (Family f, Show (f a)) => f a -> PrimFam [a]
+    
+deriving instance Show (PrimFam a)
+
+instance Family PrimFam
 
 -- | Zipper
 

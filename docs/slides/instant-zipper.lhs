@@ -1,6 +1,30 @@
 \documentclass{beamer}
 
+\usepackage{color}
+
+\definecolor{datatype}{RGB}{42,0,217}
+\definecolor{class}{RGB}{197,11,16}
+\definecolor{fieldname}{RGB}{0,0,162}
+\definecolor{prelude}{RGB}{64,80,117}
+\definecolor{numeral}{RGB}{0,0,205}
+\definecolor{infixoperator}{RGB}{42,0,217}
+\definecolor{constructor}{RGB}{0,161,0}
+\definecolor{keyword}{RGB}{229,120,0}
+\definecolor{special1}{RGB}{159,138,0}
+
+\newcommand{\lhsCHfunction}[1]{\color{infixoperator}{\mathbf{#1}}}
+\newcommand{\lhsCHinfixoperator}[1]{\color{infixoperator}{\mathbf{#1}}}
+\newcommand{\lhsCHprelude}[1]{\color{prelude}{\mathbf{#1}}}
+\newcommand{\lhsCHkeyword}[1]{\color{keyword}{\textbf{#1}}}
+\newcommand{\lhsCHconstructor}[1]{\color{constructor}{{#1}}}
+\newcommand{\lhsCHtypeclass}[1]{\color{prelude}{{#1}}}
+\newcommand{\lhsCHlitNumber}[1]{\color{numeral}{{#1}}}
+\newcommand{\lhsCHtype}[1]{\color{datatype}{{#1}}}
+\newcommand{\lhsCHsyntax}[1]{\color{keyword}{\textbf{#1}}}
+\newcommand{\lhsCHvar}[1]{#1}
+
 %include polycode.fmt
+%include instant-zipper.fmt
 %format ... = "\ ... \ "
 
 \begin{document}
@@ -35,8 +59,8 @@ Given our familiar example..
 > type Manager   = Employee
 > type Name      = String
 > 
-> data Dept = D Manager [Employee]
-> data Employee = E Name Salary
+> data Dept      = D Manager [Employee]  deriving Typeable
+> data Employee  = E Name Salary         deriving Typeable
 
 > dept :: Dept
 > dept = D doaitse [johan, sean, pedro]
@@ -195,7 +219,7 @@ Note that we throw away the type information at the recursive position!
         
         \item Note that the type-level list ensures that we cannot go up in the empty context
         \item We can also be sure that the fill succeeds, because else our program wouldn't typecheck, thus we can use fromJust
-        \item The suer does not have to type this function explicitly, the type information is maintained in the context
+        \item The user does not have to type this function explicitly, the type information is maintained in the context
     \end{itemize}
 \end{frame}
 
@@ -223,7 +247,27 @@ Note that we throw away the type information at the recursive position!
     \end{itemize}
 \end{frame}
 
-\begin{frame}{GADTs}
+\begin{frame}{Families}
+
+Instead of passing the phantom type in the usual way 
+> undefined :: Employee
+we use a nicer approach:
+
+> data Fam a where
+>     Dept      :: Fam Dept
+>     Employee  :: Fam Employee
+>     Salary    :: Fam Salary
+>     Name      :: Fam Name
+>     
+> instance Family Fam
+\end{frame}
+
+\begin{frame}{Families}
+> class Family (f :: * -> *)
+
+> down :: (Zipper h, Zipper h', Family f, Show (f h')) =>
+>    f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+> down = downL
 \end{frame}
 
 \begin{frame}

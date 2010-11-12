@@ -32,11 +32,10 @@ $(deriveAll ''Employee)
 -- | Family
 
 data Fam a where
-    Dept     ::             Fam Dept
-    Employee ::             Fam Employee
-    Salary   ::             Fam Salary
-    Name     ::             Fam Name
-    List     :: (Show a) => Fam a    -> Fam [a]
+    Dept     :: Fam Dept
+    Employee :: Fam Employee
+    Salary   :: Fam Salary
+    Name     :: Fam Name
 
 deriving instance Show (Fam a)
     
