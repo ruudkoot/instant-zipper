@@ -256,7 +256,7 @@ we use a nicer approach:
 > down = downL
 \end{frame}
 
-\begin{frame}{Conclusion}
+\begin{frame}{Error messages}
     \begin{itemize}
         \item Some of the operations on our zipper may fail
         \item For example, when tying to go down into a type which isn't there
@@ -265,10 +265,25 @@ we use a nicer approach:
     \end{itemize}
 \end{frame}
 
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item We have written a working Generic Zipper using Instant Generics
+        \item We don't need type annotation on the get/set operations
+        \item Type annotations on the navigation functions contribute to their
+              expressiveness
+        \begin{itemize}
+            \item I.e. you can express what type you want to navigate into
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
 \begin{frame}{Future work}
     \begin{itemize}
-        \item Write TH code to generate Family instances
-        \item Employ type families to catch errors at compile time
+        \item Write Template Haskell code to generate Family instances
+        \item Employ type classes/families to catch errors at compile time
+        \begin{itemize}
+            \item (Alloy?)
+        \end{itemize}
     \end{itemize}
 \end{frame}
 
