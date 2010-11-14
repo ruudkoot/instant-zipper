@@ -291,9 +291,27 @@ The implementation is similar for the other navigation functions. Using the GADT
 Although the introduction of phantom variables greately reduces the burden of writing type information, the code still gets cluttered with a lot undefineds
 and ad-hoc type annotations. What we would like is a general solution to the problem of having to specify a type without a value.
 
-... Stukje Ruud
+We would prefer to simply pass a type as a parameter, but unfortunaly this is not allowed in Haskell. We can however use GADT's to emulate dependent types to extent necessary here. We declare a type class
 
+> class Family (f :: * -> *)
 
+containing no methods. We can now give (constructor) names to types using a GADT:
+
+> data Fam a where
+>     Char   ::                       Fam Char
+>     Int    ::                       Fam Int
+>     Float  ::                       Fam Float
+>     List   :: (Family f) => f a ->  Fam [a]
+
+In the navigation functions we now expact a phantom variable of type
+
+> Family f => f h'
+
+instead of $h'$:
+
+> down :: (Zipper h, Zipper h', Family f) =>
+>   f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+> down = downL
 
 \section{Future research}
 An important improvement would be to write TH functions for the Family GADTs, so these don't have to be written by hand. Another extension would be to use a technique similar to Alloy
