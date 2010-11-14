@@ -299,11 +299,11 @@ and ad-hoc type annotations. What we would like is a general solution to the pro
 An important improvement would be to write TH functions for the Family GADTs, so these don't have to be written by hand. Another extension would be to use a technique similar to Alloy
 to catch more errors at compile time when going down into types that are not there.
 
-\section{Related work}
-
 \section{Conclusion}
+The end result of our efforts to create a zipper in Instant Generics, is a zipper which lies somewhere between the syb and the multirec zipper. We use casting at runtime to determine what position to traverse into, but use the type-driven derivative functionality to create our zipper types. 
 
-\section*{Acknowledgements}
+
+The fact that we need type annotations may look like a burden at first, but with the Family GADT and other type-level tricks this burden is mostly lifted. The type annotations that remain actually add to the expressiveness of the functions. It is now possible to specify more precisely where to navigate to, and the typing info always gives debug information. Thus we end up with a very useful zipper which is inspired by the techniques of multirec and syb, and even a bit beyond.
 
 \bibliographystyle{plain}
 \bibliography{instant-zipper}
