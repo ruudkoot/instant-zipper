@@ -27,6 +27,10 @@ module Generics.Instant.Zipper (
     downR,
     left,
     right,
+    down',
+    downR',
+    left',
+    right',
     get,
     set,
     -- *

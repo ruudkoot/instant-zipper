@@ -6,7 +6,7 @@ description:         My super cool, indeed, even mega lambdas
 license:             GPL
 author:              Bram Schuur, Ruud Koot
 maintainer:          Yow
-build-depends:       base, instant-generics
+build-depends:       base, instant-generics, template-haskell, mtl
 
 build-type:         Simple
 hs-source-dirs : src

@@ -186,42 +186,20 @@ Notice that when this first' function is invoked with a type for a that is not p
 
 The product instance tries to create a result to the left first, if it fails to the right. If both fail no context can be given.
 
+\subsection{Ambiguous Type problem}
 
-As we have seen, the behaviour of first' and fill' is determined by the type with which they are invoked. This because the way casting works. We are now going to use these functions which operate on values and contexts and use them to create functions which work on the Loc datatype. We will see that the extra type-information needed to use the first' and fill' functions drives the way in which we define our up and down functions and ultimately our Loc and Context datatypes.
+Suppose we now would like to execute the following function:
 
-\subsubsection{Up}
+> id = uncurry fill <$> first
 
-We would like to implement the up function (the function that goes one hole up in the context) in the following way:
+We first create a context and a hole and afterwards put the value back again. Intuitively this should not give any problem, but GHC will give us an "ambiguous type" error.
+What does this mean? This is the error that occurs when executing (show . read). GHC cannot infer the type between the read and show, because both of their behavious depends on this type.
+This same problem occurs in our example, but now with casting. GHC cannot infer the types between the casts. To solve this the user has to add more type information, so the type becomes known.
+The rest of the design of our zipper is built around limiting the amount of typing information the user has to type to solve this problem.
 
-> up (Loc h (Push c cs)) = 
->       (\x -> Loc (to x) cs) <$> fill' c h
-
-We fill the top hole with the current value, yielding a new value and the rest of the context. We cannot use casting here to get the types right, we need explicit typing on all variables because the fill' function already contains a cast, and thus needs fully explicit types. If we try to use another cast to get the types right, we get an ambiguous type occurence (similar to the read . show problem). Of course a solution here is to require explicit type annotations on every use of the up function, but we can be smarter. Using a trick similar to \cite{HList-HW04}, extended with GADTs to guide the pattern matching, we can keep all the types of the previous contexts in our Context GADT. We build a list at the type-level, which contains the type of each context we have visited, this way, when we go up, we can retrieve the type in this type-level list instead of asking the user for extra information. The result looks as follows:
-
-> --List at type-level
-> data Epsilon = Epsilon
-> data (:<:) c cs = c :<: cs
-> data Context ... l where
->    Empty :: Context ... Epsilon
->    Push  :: (Zipper parent) 
->               => Derivative (Rep parent)
->               -> Context ... cs
->               -> Context ... (parent :<: cs)
->
-> up :: (Zipper h, Zipper h') => 
->           Loc h r (h' :<: c) -> Loc h' r c
-> up (Loc h (Push c cs)) = 
->     fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
-
-Note that the additional type information also prevents us form going up in an empty context. We can also add fromJust because we can be sure the result will be correct.
-
-\subsubsection{Leave}
-We still left some information open in our Context datatype, this has to do with the leave function. The leave function repeatedly applies the up function until we are left with our original datatype.
-
-> leave (Loc h Empty) = h
-> leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
-
-To be able to give this function a result type, we need to know the type of the root of our tree. What we also need is the guarantee that the type of the top hole equals the type of the root type, else the Empty case won't typecheck. Thus we get:
+\subsection{Updated Context}
+To limit the amount of typing information the user has to write, we maintain typing information in our context. We use 2 techniques. The first is a type-leve list, similar to
+\cite{HList-HW04}, which we use to keep type information of the items in the context stack. We also keep type information on the root type of our tree and the type of the current hole. The result looks as 
 
 > data Loc hole root c = 
 >    Loc { focus :: hole, 
@@ -233,7 +211,21 @@ To be able to give this function a result type, we need to know the type of the 
 >            Derivative (Rep parent)
 >         -> Context parent root cs
 >         -> Context hole root (parent :<: cs)
->
+
+\subsubsection{Up}
+
+The up function goes 1 element up in the context stack. Because we added type information to our context, this function now becomes simple, all the type information has been kept through are Context GADT. The function looks as follows:
+
+> up :: (Zipper h, Zipper h') => 
+>           Loc h r (h' :<: c) -> Loc h' r c
+> up (Loc h (Push c cs)) = 
+>     fromJust $ (\x -> Loc (to x) cs) <$> fill' c h
+
+Note that the additional type information also prevents us form going up in an empty context. We can also add fromJust because we can be sure the result will be correct.
+
+\subsubsection{Leave}
+The leave function applies up repeatedly until we get our original datatypes back, here we can use the fact that we stored the root type of our tree to give the function a result type.
+
 > leave :: (Zipper h) => Loc h r c -> r
 > leave (Loc h Empty) = h
 > leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
@@ -266,31 +258,9 @@ Thus there are 2 ways to call the down function, with or without phantom argumen
 The functions right and left, which move the hole right or left into a new hole of a new (specified) type, are implemented in the same manner as the down function. For these two functions we also need
 extra type annotations.
 
-\subsection{Error messages}
-Because we have no compile-time safety for the correctness of traversals within a value, traversals written in our zipper become hard to debug. When, for example, the user tries to go down into a type which isn't there, the zipper will just return a Nothing. To help the user in debugging traversals, we replaced the Maybe constructs in our navigation functions with the error monad. We also extended the functions so they report the operation at which something goes wrong. An example extension of the downL function looks as follows:
-
-> downL_ :: (Zipper h, Zipper h') => 
->     Loc h r c -> ZipperR (Loc h' r (h :<: c))
-> downL_ (Loc h cs) = 
->    maybe (Left "Error going down left") 
->          (\(h', c) -> Right (Loc h' (Push c cs))) 
->            $ first (from h)
-
-The implementation is similar for the other navigation functions.
-
-\subsection{Tidying up with GADTs}
-Although the introduction of phantom variables greately reduces the burden of writing type information, the code still gets cluttered with a lot undefineds
-and ad-hoc type annotations. What we would like is a general solution to the problem of having to specify a type without a value.
-
-... Stukje Ruud
-
-\subsection{Context}
-
-HCtx again
-
 \subsection{Tying the recursive knot}
 
-Having defined all operations on our we need to ``tie the recursive knot'':
+Having defined all operations on our we need to ``tie the recursive knot'' to create our zipper:
 
 > class  (  Representable    f
 >        ,  Typeable         f
@@ -305,7 +275,29 @@ Having defined all operations on our we need to ``tie the recursive knot'':
 > instance Zipper Float
 > instance (Zipper a) => Zipper [a]
 
-\section{Future reasearch}
+\subsection{Error messages}
+Because we have no compile-time safety for the correctness of traversals within a value, traversals written in our zipper become hard to debug. When, for example, the user tries to go down into a type which isn't there, the zipper will just return a Nothing. To help the user in debugging traversals, we replaced the Maybe constructs in our navigation functions with the error monad. We also extended the functions so they report the operation at which something goes wrong. An example extension of the downL function looks as follows:
+
+> downL_ :: (Zipper h, Zipper h') => 
+>     Loc h r c -> ZipperR (Loc h' r (h :<: c))
+> downL_ (Loc h cs) = 
+>    maybe (Left "Error going down left") 
+>          (\(h', c) -> Right (Loc h' (Push c cs))) 
+>            $ first (from h)
+
+The implementation is similar for the other navigation functions. Using the GADTs described below, we can also give information on the types with which the syste went wrong.
+
+\subsection{Tidying up with GADTs}
+Although the introduction of phantom variables greately reduces the burden of writing type information, the code still gets cluttered with a lot undefineds
+and ad-hoc type annotations. What we would like is a general solution to the problem of having to specify a type without a value.
+
+... Stukje Ruud
+
+
+
+\section{Future research}
+An important improvement would be to write TH functions for the Family GADTs, so these don't have to be written by hand. Another extension would be to use a technique similar to Alloy
+to catch more errors at compile time when going down into types that are not there.
 
 \section{Related work}
 
