@@ -13,8 +13,8 @@ module Generics.Instant.Zipper (
     module Control.Monad.Error,
     module Data.Typeable,
     module Generics.Instant,
-    module Generics.Instant.TH,
-    module Generics.Instant.Zipper.TH,
+--    module Generics.Instant.TH,
+--    module Generics.Instant.Zipper.TH,
     -- *
     Family,
     Zipper,
@@ -46,9 +46,9 @@ import Data.Maybe
 import Data.Typeable
 
 import Generics.Instant
-import Generics.Instant.TH
+--import Generics.Instant.TH
 
-import Generics.Instant.Zipper.TH
+--import Generics.Instant.Zipper.TH
 
 -- | Type-level list
 
@@ -328,8 +328,8 @@ downL v = either (Left . (++ " with type " ++ show v)) Right . downL_
 
 -- | Down 
 
-down_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
-down_ = downL_
+--down_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+--down_ = downL_
 
 down' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
 down' = downL'

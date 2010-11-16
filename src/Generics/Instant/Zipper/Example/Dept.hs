@@ -11,6 +11,7 @@
 module Generics.Instant.Zipper.Example.Dept where
 
 import Generics.Instant.Zipper
+import Generics.Instant.TH
 
 -- | Datatype
 
@@ -31,15 +32,15 @@ $(deriveAll ''Employee)
 
 -- | Family
 
-data Fam a where
-    Dept     :: Fam Dept
-    Employee :: Fam Employee
-    Salary   :: Fam Salary
-    Name     :: Fam Name
+data DeptFam a where
+    Dept     :: DeptFam Dept
+    Employee :: DeptFam Employee
+    Salary   :: DeptFam Salary
+    Name     :: DeptFam Name
 
-deriving instance Show (Fam a)
+deriving instance Show (DeptFam a)
     
-instance Family Fam
+instance Family DeptFam
 
 -- | Zipper
 

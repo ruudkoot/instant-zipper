@@ -1,8 +1,8 @@
 {-# LANGUAGE GADTs              #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 module Generics.Instant.Zipper.TH where
 
+{-
 import Language.Haskell.TH
 import Data.Generics
  
@@ -12,7 +12,7 @@ deriveFam n = do datName <- newName "dat"
                  --(TyConI       <- reify n         
                  return $ [DataD [] datName [PlainTV datPar] [] []]
 
-{-
+
 allTypes :: Name ->  Q [Name]
 allTypes n = do i <- reify n
                 return (typesIn n) 
