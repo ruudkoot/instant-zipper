@@ -1,18 +1,31 @@
-name:                instant-zipper
-version:             0.0.0
-category:            Generics
-synopsis:            Heterogenous Zipper in Instant Generics
-description:         This package contains a heterogenous Zipper and 2
-                     examples of how to use it.
-license:             GPL
-author:              Bram Schuur, Ruud Koot
-maintainer:          B.Schuur@students.uu.nl, R.Koot@students.uu.nl
-build-depends:       base >= 4.0, base < 5.0, instant-generics, mtl
+name:               instant-zipper
+version:            0.0.1
+synopsis:           Generic Zipper in Instant Generics.
+description:
 
+  This package provides a generic zipper working over heterogenic datatypes.
+  It is implemented using the Instant Generics library.
+
+category:           Generics
+copyright:          (c) 2010 Bram Schuur and Ruud Koot 
+license:            GPL-3
+license-file:       COPYING
+author:             Bram Schuur,
+                    Ruud Koot
+maintainer:         B.Schuur@students.uu.nl, inbox@ruudkoot.nl
+stability:          experimental
+tested-with:        GHC == 6.12.3
+extra-source-files: examples/Term.hs
+                    examples/Dept.hs
+cabal-version:      >= 1.4
 build-type:         Simple
-hs-source-dirs : src
-exposed-modules :    Generics.Instant.Zipper
-                     Generics.Instant.Zipper.Example.Dept
-                     Generics.Instant.Zipper.Example.Term
-
-
+  
+library
+  hs-source-dirs:   src
+  exposed-modules:  Generics.Instant.Zipper
+  build-depends:    base >= 4.0 && < 5,
+                    syb >= 0.1.0.2,
+                    instant-generics == 0.2.1,
+                    template-haskell >= 2.4,
+                    mtl
+                    

@@ -8,10 +8,9 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 
-module Generics.Instant.Zipper.Example.Dept where
+module Dept where
 
 import Generics.Instant.Zipper
-import Generics.Instant.TH
 
 -- | Datatype
 
@@ -32,15 +31,15 @@ $(deriveAll ''Employee)
 
 -- | Family
 
-data DeptFam a where
-    Dept     :: DeptFam Dept
-    Employee :: DeptFam Employee
-    Salary   :: DeptFam Salary
-    Name     :: DeptFam Name
+data Fam a where
+    Dept     :: Fam Dept
+    Employee :: Fam Employee
+    Salary   :: Fam Salary
+    Name     :: Fam Name
 
-deriving instance Show (DeptFam a)
+deriving instance Show (Fam a)
     
-instance Family DeptFam
+instance Family Fam
 
 -- | Zipper
 
