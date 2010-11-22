@@ -10,6 +10,9 @@
 
 module Dept where
 
+import Control.Monad.Error
+
+import Generics.Instant.TH
 import Generics.Instant.Zipper
 
 -- | Datatype
@@ -56,7 +59,7 @@ dept = D doaitse [johan, sean, pedro]
           sean     = E "Sean"     2600
           pedro    = E "Pedro"    2400
 
-fixDept :: ZipperR Dept
+fixDept :: Maybe Dept
 fixDept =  return (enter dept)
         >>= down  Employee
         >>= down  Name
