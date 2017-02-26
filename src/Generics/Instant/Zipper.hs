@@ -10,11 +10,15 @@
 {-# OPTIONS_GHC -Wall           #-}
 
 module Generics.Instant.Zipper (
+    module Control.Monad.Error,
     module Data.Typeable,
     module Generics.Instant,
+--    module Generics.Instant.TH,
+--    module Generics.Instant.Zipper.TH,
     -- *
     Family,
     Zipper,
+    ZipperR,
     -- *
     enter,
     leave,
@@ -23,6 +27,10 @@ module Generics.Instant.Zipper (
     downR,
     left,
     right,
+    down',
+    downR',
+    left',
+    right',
     get,
     set,
     -- *
@@ -32,12 +40,15 @@ module Generics.Instant.Zipper (
 import Prelude hiding (last)
 
 import Control.Applicative
+import Control.Monad.Error
 
 import Data.Maybe
 import Data.Typeable
 
 import Generics.Instant
+--import Generics.Instant.TH
 
+--import Generics.Instant.Zipper.TH
 
 -- | Type-level list
 
@@ -48,16 +59,15 @@ infixr 5 :<:
 
 -- | Loc and Context
 
-data Loc hole root c = (:|:) { focus :: hole, context :: Context hole root c }
+data Loc hole root c = Loc { focus :: hole, context :: Context hole root c }
 
 data Context hole root l where
     Empty :: Context hole hole Epsilon
-    (:-)  :: (Zipper parent) => Derivative (Rep parent)
+    Push  :: (Zipper parent) => Derivative (Rep parent)
                              -> Context parent root cs
                              -> Context hole root (parent :<: cs)
-                             
-infix 6 :|:
-infix 7 :-
+
+type ZipperR = Either String
 
 -- | Families
 
@@ -72,14 +82,6 @@ data PrimFam a where
 deriving instance Show (PrimFam a)
 
 instance Family PrimFam
-
--- | Monadic cast
-
-maybeToMonad :: (Monad m) => String -> Maybe a -> m a
-maybeToMonad e = maybe (fail e) return
-
-castM :: (Typeable a, Typeable b, Monad m) => a -> m b
-castM = maybeToMonad "cannot cast" . cast
 
 -- | Zipper
 
@@ -124,7 +126,7 @@ instance (Differentiable f) => Differentiable (C c f) where
 -- | Fill
 
 class Fillable f where
-    fill :: (Typeable a, Monad m, Applicative m) => Derivative f -> a -> m f
+    fill :: (Typeable a) => Derivative f -> a -> Maybe f
 
 instance Fillable U where
     fill = error "impossible"
@@ -147,10 +149,10 @@ instance (Fillable f, Fillable g) => Fillable (f :*: g) where
     fill (C2 l c) v = (l :*:) <$> fill c v
 
 instance (Typeable a) => Fillable (Rec a) where
-    fill CRec v = Rec <$> castM v
+    fill CRec v = Rec <$> cast v
     
 instance (Typeable a) => Fillable (Var a) where
-    fill CVar v = Var <$> castM v
+    fill CVar v = Var <$> cast v
 
 instance (Fillable f) => Fillable (C c f) where
     fill (CC c) v = C <$> fill c v
@@ -159,19 +161,19 @@ instance (Fillable f) => Fillable (C c f) where
 -- | First
 
 class Firstable f where
-    first :: (Zipper a, Monad m, Alternative m) => f -> m (a, Derivative f)
+    first :: (Zipper a) => f -> Maybe (a, Derivative f)
 
 instance Firstable U where
-    first _ = fail "first U"
+    first _ = Nothing
 
 instance Firstable Char where
-    first _ = fail "first Char"
+    first _ = Nothing
 
 instance Firstable Int where
-    first _ = fail "first Int"
+    first _ = Nothing
     
 instance Firstable Float where
-    first _ = fail "first Float"
+    first _ = Nothing
             
 instance (Firstable f, Firstable g) => Firstable (f :+: g) where
     first (L x)     = fmap CL <$> first x
@@ -182,10 +184,10 @@ instance (Firstable f, Firstable g) => Firstable (f :*: g) where
                    <|> fmap (     C2 l) <$> first r
 
 instance (Typeable f) => Firstable (Rec f) where
-    first (Rec v) = (, CRec) <$> castM v
+    first (Rec v) = (, CRec) <$> cast v
 
 instance (Typeable f) => Firstable (Var f) where
-    first (Var v) = (, CVar) <$> castM v
+    first (Var v) = (, CVar) <$> cast v
 
 instance (Firstable f) => Firstable (C c f) where
     first (C v)   = fmap CC <$> first v
@@ -193,19 +195,19 @@ instance (Firstable f) => Firstable (C c f) where
 -- | Last
 
 class Lastable f where
-    last :: (Zipper a, Monad m, Alternative m) => f -> m (a, Derivative f)
+    last :: (Zipper a) => f -> Maybe (a, Derivative f)
 
 instance Lastable U where
-    last _ = fail "last U"
+    last _ = Nothing
 
 instance Lastable Char where
-    last _ = fail "last Char"
+    last _ = Nothing
 
 instance Lastable Int where
-    last _ = fail "last Int"
+    last _ = Nothing
     
 instance Lastable Float where
-    last _ = fail "last Float"
+    last _ = Nothing
             
 instance (Lastable f, Lastable g) => Lastable (f :+: g) where
     last (L x) = fmap CL <$> last x
@@ -216,10 +218,10 @@ instance (Lastable f, Lastable g) => Lastable (f :*: g) where
                   <|> fmap (flip C1 r) <$> last l
 
 instance (Typeable f) => Lastable (Rec f) where
-    last (Rec v) = (, CRec) <$> castM v
+    last (Rec v) = (, CRec) <$> cast v
 
 instance (Typeable f) => Lastable (Var f) where
-    last (Var v) = (, CVar) <$> castM v
+    last (Var v) = (, CVar) <$> cast v
 
 instance (Lastable f) => Lastable (C c f) where
     last (C v) = fmap CC <$> last v
@@ -227,20 +229,19 @@ instance (Lastable f) => Lastable (C c f) where
 -- | Next
 
 class Nextable f where
-    next :: (Typeable a, Zipper b, Monad m, Alternative m) =>
-                Derivative f -> a -> m (b, Derivative f)
+    next :: (Typeable a, Zipper b) => Derivative f -> a -> Maybe (b, Derivative f)
     
 instance Nextable U where
-    next _ _ = fail "next U"
+    next _ _ = Nothing
 
 instance Nextable Char where
-    next _ _ = fail "next Char"
+    next _ _ = Nothing
 
 instance Nextable Int where
-    next _ _ = fail "next Int"
+    next _ _ = Nothing
 
 instance Nextable Float where
-    next _ _ = fail "next Float"
+    next _ _ = Nothing
 
 instance (Nextable f, Nextable g) => Nextable (f :+: g) where
     next (CL c) x = fmap CL <$> next c x
@@ -252,10 +253,10 @@ instance (Nextable f, Nextable g, Fillable f, Firstable g) => Nextable (f :*: g)
     next (C2 x c) y = fmap (C2 x) <$> next c y 
 
 instance Nextable (Rec f) where
-    next CRec _ = fail "next CRec"
+    next CRec _ = Nothing
 
 instance Nextable (Var f) where
-    next CVar _ = fail "next CVar"
+    next CVar _ = Nothing
 
 instance (Nextable f) => Nextable (C c f) where
     next (CC v) x = fmap CC <$> next v x
@@ -263,20 +264,19 @@ instance (Nextable f) => Nextable (C c f) where
 -- | Prev
 
 class Prevable f where
-    prev :: (Typeable a, Zipper b, Monad m, Alternative m) =>
-                Derivative f -> a -> m (b, Derivative f)
+    prev :: (Typeable a, Zipper b) => Derivative f -> a -> Maybe (b, Derivative f)
     
 instance Prevable U where
-    prev _ _ = fail "prev U"
+    prev _ _ = Nothing
 
 instance Prevable Char where
-    prev _ _ = fail "prev Char"
+    prev _ _ = Nothing
 
 instance Prevable Int where
-    prev _ _ = fail "prev Int"
+    prev _ _ = Nothing
 
 instance Prevable Float where
-    prev _ _ = fail "prev Float"
+    prev _ _ = Nothing
 
 instance (Prevable f, Prevable g) => Prevable (f :+: g) where
     prev (CL c) x = fmap CL <$> prev c x
@@ -288,10 +288,10 @@ instance (Lastable f, Fillable g, Prevable f, Prevable g) => Prevable (f :*: g) 
                    <|> (\x' (y',c') -> (y', C1 c' x')) <$> fill c y <*> last x
 
 instance Prevable (Rec f) where
-    prev CRec _ = fail "prev CRec"
+    prev CRec _ = Nothing
 
 instance Prevable (Var f) where
-    prev CVar _ = fail "prev CVar"
+    prev CVar _ = Nothing
 
 instance (Prevable f) => Prevable (C c f) where
     prev (CC v) x = fmap CC <$> prev v x
@@ -302,46 +302,71 @@ get :: Loc h r c -> h
 get = focus
 
 set :: h -> Loc h r c -> Loc h r c
-set v (_ :|: cs) = v :|: cs
-
-enter :: Zipper h => h -> Loc h h Epsilon
-enter h = h :|: Empty
+set v (Loc _ cs) = Loc v cs
 
 leave :: (Zipper h) => Loc h r c -> r
-leave     (h :|: Empty  ) = h
-leave loc@(_ :|: _ :- _) = leave (up loc)
+leave (Loc h Empty) = h
+leave loc@(Loc _ (Push _ _)) = leave . up  $ loc
 
--- | Up
+enter :: Zipper h => h -> Loc h h Epsilon
+enter h = Loc h Empty
+
 
 up :: (Zipper h, Zipper h') => Loc h r (h' :<: c) -> Loc h' r c
-up (h :|: c :- cs) = fromJust $ do x <- fill c h
-                                   return (to x :|: cs)
+up (Loc h (Push c cs))   = fromJust $ (\x -> Loc (to x) cs) <$> fill c h
 
--- | Down (left)
+-- | Down left
 
-down :: (Family f, Zipper h, Zipper h', Monad m, Alternative m)
-     => f h' -> Loc h r c -> m (Loc h' r (h :<: c))
-down _ (h :|: cs) = do (h', c) <- first (from h) 
-                       return (h' :|: c :- cs)
+downL_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL_ (Loc h cs) = maybe (Left "Error going down left") (\(h', c) -> Right (Loc h' (Push c cs))) $ first (from h)
 
--- | Down right
+downL' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL' _ = downL_
 
-downR :: (Family f, Zipper h, Zipper h', Monad m, Alternative m)
-      => f h' -> Loc h r c -> m (Loc h' r (h :<: c))
-downR _ (h :|: cs) = do (h', c) <- last (from h) 
-                        return (h' :|: c :- cs)
+downL :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downL v = either (Left . (++ " with type " ++ show v)) Right . downL_
+
+-- | Down 
+
+--down_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+--down_ = downL_
+
+down' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+down' = downL'
+
+down :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+down = downL
+
+-- | Down Right
+
+downR_ :: (Zipper h, Zipper h') => Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downR_ (Loc h cs) = maybe (Left "Error going down right") (\(h', c) -> Right (Loc h' (Push c cs))) $ last (from h)
+
+downR' :: (Zipper h, Zipper h') => h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downR' _ = downR_ 
+
+downR :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r c -> ZipperR (Loc h' r (h :<: c))
+downR v = either (Left . (++ " with type " ++ show v)) Right . downR_
 
 -- | Right
 
-right :: (Family f, Zipper h, Zipper h', Monad m, Alternative m)
-      => f h' -> Loc h r (c :<: cs) -> m (Loc h' r (c :<: cs))
-right _ (h :|: c :- cs) = do (h', c') <- next c h
-                             return (h' :|: c' :- cs)
+right_ :: (Zipper h, Zipper h') => Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+right_ (Loc h (Push c cs)) = maybe (Left "Error going right") (\(h', c') -> Right (Loc h' (Push c' cs))) $ next c h
+
+right' :: (Zipper h, Zipper h') => h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+right' _ = right_
+
+right :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+right v = either (Left . (++ " with type " ++ show v)) Right . right_
 
 -- | Left
 
-left :: (Family f, Zipper h, Zipper h', Monad m, Alternative m)
-     => f h' -> Loc h r (c :<: cs) -> m (Loc h' r (c :<: cs))
-left _ (h :|: c :- cs) = do (h', c') <- prev c h
-                            return (h' :|: c' :- cs)
+left_ :: (Zipper h, Zipper h') => Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+left_ (Loc h (Push c cs)) = maybe (Left "Error going left") (\(h', c') -> Right (Loc h' (Push c' cs))) $ prev c h
+
+left' :: (Zipper h, Zipper h') => h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+left' _ = left_
+
+left :: (Zipper h, Zipper h', Family f, Show (f h')) => f h' -> Loc h r (c :<: cs) -> ZipperR (Loc h' r (c :<: cs))
+left v = either (Left . (++ " with type " ++ show v)) Right . left_
 

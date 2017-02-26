@@ -8,7 +8,7 @@
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
-module Term where
+module Generics.Instant.Zipper.Example.Term where
 
 import Data.Maybe
 import Data.Typeable
@@ -50,13 +50,13 @@ $(deriveAll ''Term)
 
 -- | Family
 
-data Fam a where
-    Term   :: Fam Term
-    String :: Fam String
+data TermFam a where
+    Term   :: TermFam Term
+    String :: TermFam String
 
-deriving instance Show (Fam a)
+deriving instance Show (TermFam a)
     
-instance Family Fam
+instance Family TermFam
 
 -- | Zipper
 

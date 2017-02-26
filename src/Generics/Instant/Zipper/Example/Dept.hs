@@ -8,12 +8,10 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 
-module Dept where
+module Generics.Instant.Zipper.Example.Dept where
 
-import Control.Monad.Error
-
-import Generics.Instant.TH
 import Generics.Instant.Zipper
+import Generics.Instant.TH
 
 -- | Datatype
 
@@ -34,15 +32,15 @@ $(deriveAll ''Employee)
 
 -- | Family
 
-data Fam a where
-    Dept     :: Fam Dept
-    Employee :: Fam Employee
-    Salary   :: Fam Salary
-    Name     :: Fam Name
+data DeptFam a where
+    Dept     :: DeptFam Dept
+    Employee :: DeptFam Employee
+    Salary   :: DeptFam Salary
+    Name     :: DeptFam Name
 
-deriving instance Show (Fam a)
+deriving instance Show (DeptFam a)
     
-instance Family Fam
+instance Family DeptFam
 
 -- | Zipper
 
@@ -59,7 +57,7 @@ dept = D doaitse [johan, sean, pedro]
           sean     = E "Sean"     2600
           pedro    = E "Pedro"    2400
 
-fixDept :: Maybe Dept
+fixDept :: ZipperR Dept
 fixDept =  return (enter dept)
         >>= down  Employee
         >>= down  Name
